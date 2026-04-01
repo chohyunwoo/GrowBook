@@ -179,7 +179,7 @@ export default function Order() {
       {/* Navigation */}
       <div className="flex gap-3">
         <button
-          onClick={() => navigate('/edit-cover')}
+          onClick={() => navigate('/preview')}
           className="flex-1 py-3 rounded-xl border border-[#D1D1CF] text-[#6B6B6B] font-medium text-sm hover:bg-[#EEEEEC] transition-colors cursor-pointer"
         >
           이전

@@ -146,13 +146,13 @@ export default function Preview() {
       {/* Navigation */}
       <div className="flex gap-3">
         <button
-          onClick={() => navigate('/upload')}
+          onClick={() => navigate('/input-form')}
           className="flex-1 py-3 rounded-xl border border-[#D1D1CF] text-[#6B6B6B] font-medium text-sm hover:bg-[#EEEEEC] transition-colors cursor-pointer"
         >
           이전
         </button>
         <button
-          onClick={() => navigate('/edit-cover')}
+          onClick={() => navigate('/order')}
           className="flex-1 py-3 rounded-xl bg-[#2D6A4F] text-white font-medium text-sm hover:bg-[#245A42] transition-colors cursor-pointer"
         >
           다음: 표지 편집

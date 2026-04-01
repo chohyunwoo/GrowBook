@@ -1,7 +1,18 @@
 import { useNavigate } from 'react-router-dom'
+import { getCredits } from '../api/creditsApi'
 
 export default function Home() {
   const navigate = useNavigate()
+
+  const handleStart = async () => {
+    try {
+      const res = await getCredits()
+      console.log('크레딧 조회 성공:', res.data)
+    } catch (err) {
+      console.error('크레딧 조회 실패:', err)
+    }
+    navigate('/type-select')
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
@@ -23,7 +34,7 @@ export default function Home() {
         </p>
 
         <button
-          onClick={() => navigate('/upload')}
+          onClick={handleStart}
           className="w-full max-w-xs mx-auto bg-[#2D6A4F] hover:bg-[#245A42] text-white text-base font-medium py-4 px-8 rounded-xl transition-colors duration-200 cursor-pointer"
         >
           앨범 만들기 시작
