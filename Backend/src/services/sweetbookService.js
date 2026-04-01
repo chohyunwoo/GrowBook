@@ -281,7 +281,7 @@ async function createOrder(bookUid, shipping) {
   const client = getClient()
 
   try {
-    const result = await client.orders.create({ items: [{ bookUid }], shipping })
+    const result = await client.orders.create({ items: [{ bookUid, quantity: 1 }], shipping })
     console.log('[createOrder 성공]', JSON.stringify(result, null, 2))
     return result
   } catch (err) {
