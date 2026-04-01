@@ -20,6 +20,14 @@ function logError(...args) {
  * @returns {Promise<{title: string, subtitle: string, story: string}>}
  */
 async function generateStory(name, birthYear, albumYear, highlights) {
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      title: `${name}의 ${albumYear}년 — 처음으로 가득한 날들`,
+      subtitle: `소중한 순간들이 모인 한 해`,
+      story: `${albumYear}년, ${name}는 정말 많이 자랐어요.`,
+    }
+  }
+
   const age = albumYear - birthYear
 
   const filledHighlights = highlights
