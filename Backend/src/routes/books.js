@@ -3,6 +3,7 @@ const multer = require('multer')
 const { SweetbookClient } = require('../sdk/client')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
+const { createBook, ServiceError } = require('../services/sweetbookService')
 
 const router = express.Router()
 
@@ -40,7 +41,7 @@ function getSweetbookClient() {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, highlights]
+ *             required: [title, subtitle, story, coverTemplateUid, contentTemplateUid, highlights]
  *             properties:
  *               title:
  *                 type: string
@@ -69,49 +70,21 @@ function getSweetbookClient() {
 router.post(
   '/create',
   asyncHandler(async (req, res) => {
-    const { title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, highlights } = req.body
+    const { title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, albumYear, highlights } = req.body
 
-    if (!title || !subtitle || !story || !coverTemplateUid || !contentTemplateUid || !coverImageFileName || !highlights) {
+    if (!title || !subtitle || !story || !coverTemplateUid || !contentTemplateUid || !highlights) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '필수 항목이 누락되었습니다.' })
     }
 
-    const client = getSweetbookClient()
-
-    let bookUid
     try {
-      // 1. 도서 생성
-      const bookResult = await client.books.create({ bookSpecUid: 'SQUAREBOOK_HC', title })
-      bookUid = bookResult.bookUid
-
-      // 2. 표지 추가
-      await client.covers.create(bookUid, coverTemplateUid, {
-        bookTitle: title,
-        subtitle,
-        frontPhoto: coverImageFileName,
-      })
-
-      // 3. 전체 스토리 삽입
-      await client.contents.insert(bookUid, contentTemplateUid, { story }, { breakBefore: 'page' })
-
-      // 4. 월별 하이라이트 삽입 (1~12월)
-      for (let month = 1; month <= 12; month++) {
-        const highlight = highlights.find((h) => h.month === month)
-        const content = highlight?.content?.trim() || '이달은 조용히 흘러갔어요.'
-        await client.contents.insert(
-          bookUid,
-          contentTemplateUid,
-          { month: `${month}월`, story: content },
-          { breakBefore: 'page' }
-        )
-      }
-
-      // 5. 최종화
-      await client.books.finalize(bookUid)
+      const result = await createBook({ title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, albumYear, highlights })
+      res.json({ success: true, data: result })
     } catch (err) {
+      if (err instanceof ServiceError) {
+        return res.status(502).json({ success: false, error: err.code, message: err.message })
+      }
       return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '도서 생성 중 오류가 발생했습니다.' })
     }
-
-    res.json({ success: true, data: { bookUid } })
   })
 )
 

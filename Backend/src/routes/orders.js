@@ -2,6 +2,7 @@ const express = require('express')
 const { SweetbookClient } = require('../sdk/client')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
+const { createOrder, estimateOrder, getOrder, ServiceError } = require('../services/sweetbookService')
 
 const router = express.Router()
 
@@ -41,15 +42,15 @@ router.post(
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'bookUid가 필요합니다.' })
     }
 
-    const client = getSweetbookClient()
-    let result
     try {
-      result = await client.orders.estimate({ items: [{ bookUid }] })
+      const result = await estimateOrder(bookUid)
+      res.json({ success: true, data: result })
     } catch (err) {
+      if (err instanceof ServiceError) {
+        return res.status(502).json({ success: false, error: err.code, message: err.message })
+      }
       return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '예상 금액 조회 중 오류가 발생했습니다.' })
     }
-
-    res.json({ success: true, data: result })
   })
 )
 
@@ -111,25 +112,18 @@ router.post(
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '배송 필수 항목이 누락되었습니다. (recipientName, recipientPhone, postalCode, address1)' })
     }
 
-    const client = getSweetbookClient()
-    let result
     try {
-      result = await client.orders.create({
-        items: [{ bookUid }],
-        shipping,
-      })
+      const result = await createOrder(bookUid, shipping)
+      res.json({ success: true, data: result })
     } catch (err) {
-      if (err.statusCode === 402) {
-        return res.status(402).json({
-          success: false,
-          error: ERROR_CODE.INSUFFICIENT_CREDIT,
-          data: { required: err.details?.required, balance: err.details?.balance },
-        })
+      if (err instanceof ServiceError && err.code === ERROR_CODE.INSUFFICIENT_CREDIT) {
+        return res.status(402).json({ success: false, error: err.code, data: err.data })
+      }
+      if (err instanceof ServiceError) {
+        return res.status(502).json({ success: false, error: err.code, message: err.message })
       }
       return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '주문 생성 중 오류가 발생했습니다.' })
     }
-
-    res.json({ success: true, data: result })
   })
 )
 
@@ -153,15 +147,15 @@ router.get(
   '/:orderUid',
   asyncHandler(async (req, res) => {
     const { orderUid } = req.params
-    const client = getSweetbookClient()
-    let result
     try {
-      result = await client.orders.get(orderUid)
+      const result = await getOrder(orderUid)
+      res.json({ success: true, data: result })
     } catch (err) {
+      if (err instanceof ServiceError) {
+        return res.status(502).json({ success: false, error: err.code, message: err.message })
+      }
       return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '주문 조회 중 오류가 발생했습니다.' })
     }
-
-    res.json({ success: true, data: result })
   })
 )
 
