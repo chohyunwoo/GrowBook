@@ -1,8 +1,8 @@
 const express = require('express')
 const rateLimit = require('express-rate-limit')
-const Anthropic = require('@anthropic-ai/sdk')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
+const { generateStory } = require('../services/claudeService')
 
 const router = express.Router()
 
@@ -79,45 +79,13 @@ router.post(
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '하이라이트는 12개 항목이어야 합니다.' })
     }
 
-    const age = albumYear - birthYear
-    const filledHighlights = highlights
-      .filter((h) => h.content && h.content.trim() !== '')
-      .map((h) => `${h.month}월: ${h.content}`)
-      .join('\n')
-
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-    let message
     try {
-      message = await anthropic.messages.create({
-        model: 'claude-opus-4-6',
-        max_tokens: 1024,
-        system: '당신은 따뜻한 감성의 글작가입니다. 요청한 형식의 JSON만 반환하고 다른 텍스트는 포함하지 마세요.',
-        messages: [
-          {
-            role: 'user',
-            content: `아이 이름: ${name.trim()}\n나이: ${age}살\n연도: ${albumYear}년\n\n월별 하이라이트:\n${filledHighlights || '(기록 없음)'}\n\n위 정보를 바탕으로 아이의 성장 스토리를 작성해주세요.\n다음 JSON 형식으로만 응답해주세요:\n{\n  "title": "20자 이내 제목",\n  "subtitle": "30자 이내 부제",\n  "story": "500자 내외 성장 스토리"\n}`,
-          },
-        ],
-      })
+      const data = await generateStory(name, birthYear, albumYear, highlights)
+      res.json({ success: true, data })
     } catch (err) {
-      return res.status(502).json({ success: false, error: ERROR_CODE.CLAUDE_API_ERROR, message: 'AI 스토리 생성 중 오류가 발생했습니다.' })
+      const code = err.code === ERROR_CODE.CLAUDE_API_ERROR ? ERROR_CODE.CLAUDE_API_ERROR : ERROR_CODE.CLAUDE_API_ERROR
+      return res.status(502).json({ success: false, error: code, message: err.message })
     }
-
-    const text = message.content[0].text
-    const match = text.match(/\{[\s\S]*\}/)
-    if (!match) {
-      return res.status(502).json({ success: false, error: ERROR_CODE.CLAUDE_API_ERROR, message: 'AI 응답을 파싱할 수 없습니다.' })
-    }
-
-    let data
-    try {
-      data = JSON.parse(match[0])
-    } catch {
-      return res.status(502).json({ success: false, error: ERROR_CODE.CLAUDE_API_ERROR, message: 'AI 응답 JSON 파싱에 실패했습니다.' })
-    }
-
-    res.json({ success: true, data })
   })
 )
 
