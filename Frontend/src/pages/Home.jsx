@@ -1,90 +1,85 @@
-import { useNavigate } from 'react-router-dom'
-import { getCredits } from '../api/creditsApi'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function Home() {
   const navigate = useNavigate()
 
-  const handleStart = async () => {
-    try {
-      const res = await getCredits()
-      console.log('크레딧 조회 성공:', res.data)
-    } catch (err) {
-      console.error('크레딧 조회 실패:', err)
-    }
-    navigate('/type-select')
-  }
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-4">
+        <Link to="/" className="text-2xl font-bold text-primary">
+          GrowBook
+        </Link>
+        <Link
+          to="/shipping"
+          className="text-sm text-primary hover:text-primary-dark transition-colors duration-200"
+        >
+          배송지 관리
+        </Link>
+      </header>
+
       {/* Hero */}
-      <div className="text-center max-w-lg">
-        {/* Logo Mark */}
-        <div className="w-16 h-16 border-2 border-[#2D6A4F] rounded-2xl flex items-center justify-center mx-auto mb-8">
-          <span className="text-[#2D6A4F] font-bold text-xl tracking-tighter">G</span>
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
+        <div className="text-center max-w-lg">
+          <h1 className="text-3xl md:text-4xl font-bold text-[#1A1A1A] mb-4 leading-tight">
+            소중한 성장의 순간을<br />한 권의 책으로
+          </h1>
+          <p className="text-base text-[#6B6B6B] mb-12 leading-relaxed">
+            AI가 한 해의 기억을 모아 특별한 앨범을 만들어드립니다
+          </p>
+
+          <button
+            onClick={() => navigate('/type-select')}
+            className="w-full max-w-xs mx-auto bg-primary hover:bg-primary-dark text-white text-base font-medium py-4 px-8 rounded-xl transition-colors duration-200 cursor-pointer"
+          >
+            앨범 만들기 시작
+          </button>
         </div>
 
-        <h1 className="text-4xl md:text-5xl font-bold text-[#1A1A1A] mb-4 tracking-tight">
-          GrowBook
-        </h1>
-        <p className="text-base text-[#6B6B6B] mb-2 leading-relaxed">
-          아이의 소중한 순간을 담은
-        </p>
-        <p className="text-base text-[#6B6B6B] mb-12 leading-relaxed">
-          나만의 성장 앨범을 만들어보세요
-        </p>
-
-        <button
-          onClick={handleStart}
-          className="w-full max-w-xs mx-auto bg-[#2D6A4F] hover:bg-[#245A42] text-white text-base font-medium py-4 px-8 rounded-xl transition-colors duration-200 cursor-pointer"
-        >
-          앨범 만들기 시작
-        </button>
-      </div>
-
-      {/* Features */}
-      <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-5 max-w-2xl w-full px-4">
-        {[
-          {
-            icon: (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
-              </svg>
-            ),
-            title: '사진 업로드',
-            desc: '소중한 사진을 선택하세요',
-          },
-          {
-            icon: (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.043-.025a15.994 15.994 0 0 1 1.622-3.395m3.42 3.42a15.995 15.995 0 0 0 4.764-4.648l3.876-5.814a1.151 1.151 0 0 0-1.597-1.597L14.146 6.32a15.996 15.996 0 0 0-4.649 4.763m3.42 3.42a6.776 6.776 0 0 0-3.42-3.42" />
-              </svg>
-            ),
-            title: '자동 꾸미기',
-            desc: 'AI가 예쁘게 배치해줘요',
-          },
-          {
-            icon: (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-              </svg>
-            ),
-            title: '앨범 주문',
-            desc: '실물 앨범으로 받아보세요',
-          },
-        ].map((item) => (
-          <div
-            key={item.title}
-            className="bg-white rounded-xl p-6 text-center border border-[#E5E5E3]"
-          >
-            <div className="w-10 h-10 rounded-lg bg-[#2D6A4F]/10 text-[#2D6A4F] flex items-center justify-center mx-auto mb-3">
-              {item.icon}
+        {/* Features */}
+        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-5 max-w-2xl w-full px-4">
+          {[
+            {
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                </svg>
+              ),
+              title: '성장 기록',
+              desc: '월별 특별한 순간을 기록하세요',
+            },
+            {
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
+                </svg>
+              ),
+              title: 'AI 스토리 생성',
+              desc: 'AI가 성장 스토리를 만들어드려요',
+            },
+            {
+              icon: (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                </svg>
+              ),
+              title: '책 제작 & 배송',
+              desc: '실물 앨범으로 받아보세요',
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="bg-white rounded-xl p-6 text-center border border-[#E5E5E3]"
+            >
+              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
+                {item.icon}
+              </div>
+              <h3 className="font-semibold text-[#1A1A1A] text-sm mb-1">{item.title}</h3>
+              <p className="text-xs text-[#6B6B6B]">{item.desc}</p>
             </div>
-            <h3 className="font-semibold text-[#1A1A1A] text-sm mb-1">{item.title}</h3>
-            <p className="text-xs text-[#6B6B6B]">{item.desc}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </main>
     </div>
   )
 }
