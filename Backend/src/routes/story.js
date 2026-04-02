@@ -60,27 +60,31 @@ router.post(
   '/generate',
   storyLimiter,
   asyncHandler(async (req, res) => {
-    const { name, birthYear, albumYear, highlights } = req.body
+    const { type = 'child', name, birthYear, albumYear, period, highlights } = req.body
     const currentYear = new Date().getFullYear()
+    const validTypes = ['child', 'pet', 'travel', 'memory']
 
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: `type은 ${validTypes.join(', ')} 중 하나여야 합니다.` })
+    }
     if (!name || typeof name !== 'string' || name.trim().length < 1 || name.trim().length > 50) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '이름은 1~50자 사이여야 합니다.' })
     }
-    if (!birthYear || birthYear < 2000 || birthYear > currentYear) {
+    if ((type === 'child' || type === 'pet') && (!birthYear || birthYear < 2000 || birthYear > currentYear)) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: `출생 연도는 2000~${currentYear} 사이여야 합니다.` })
     }
-    if (!albumYear || albumYear < 2000 || albumYear > currentYear) {
+    if ((type === 'child' || type === 'pet') && (!albumYear || albumYear < 2000 || albumYear > currentYear)) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: `앨범 연도는 2000~${currentYear} 사이여야 합니다.` })
     }
-    if (albumYear < birthYear) {
+    if ((type === 'child' || type === 'pet') && albumYear < birthYear) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '앨범 연도는 출생 연도보다 크거나 같아야 합니다.' })
     }
-    if (!Array.isArray(highlights) || highlights.length !== 12) {
-      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '하이라이트는 12개 항목이어야 합니다.' })
+    if (!Array.isArray(highlights) || highlights.length === 0) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '하이라이트는 1개 이상이어야 합니다.' })
     }
 
     try {
-      const data = await generateStory(name, birthYear, albumYear, highlights)
+      const data = await generateStory({ type, name, birthYear, albumYear, period, highlights })
       res.json({ success: true, data })
     } catch (err) {
       const code = err.code === ERROR_CODE.CLAUDE_API_ERROR ? ERROR_CODE.CLAUDE_API_ERROR : ERROR_CODE.CLAUDE_API_ERROR
