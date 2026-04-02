@@ -131,13 +131,14 @@ router.post(
   storyLimiter,
   asyncHandler(async (req, res) => {
     const { highlight, type } = req.body
+    const highlightText = typeof highlight === 'object' ? highlight?.content : highlight
 
-    if (!highlight || typeof highlight !== 'string' || highlight.trim().length === 0) {
+    if (!highlightText || typeof highlightText !== 'string' || highlightText.trim().length === 0) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'highlight 텍스트가 필요합니다.' })
     }
 
     try {
-      const data = await generateCaption(highlight.trim(), type)
+      const data = await generateCaption(highlightText.trim(), type)
       res.json({ success: true, data })
     } catch (err) {
       return res.status(502).json({ success: false, error: err.code || ERROR_CODE.CLAUDE_API_ERROR, message: err.message })

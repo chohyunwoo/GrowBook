@@ -98,10 +98,7 @@ export default function Preview() {
     if (!h || !h.content) return
     setCaptionLoading(month)
     try {
-      const res = await generateCaption(
-        { month: h.month, content: h.content },
-        state.type || 'child'
-      )
+      const res = await generateCaption(h.content, state.type || 'child')
       const caption = res.data?.data?.caption || res.data?.caption || ''
       dispatch({ type: 'SET_HIGHLIGHT', payload: { month, caption } })
     } catch { /* ignore */ }

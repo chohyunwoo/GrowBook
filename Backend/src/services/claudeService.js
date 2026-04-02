@@ -144,14 +144,38 @@ async function generateStory({ type = 'child', name, birthYear, albumYear, perio
  * @returns {Promise<{caption: string}>}
  */
 async function generateCaption(highlight, type) {
+  const mockCaptions = {
+    child: [
+      '그 순간이 영원히 기억될 거야', '작은 기적이 일어난 날', '눈부시게 빛났던 하루',
+      '세상에서 가장 소중한 순간', '함께여서 행복했던 그때',
+    ],
+    pet: [
+      '그 순간이 영원히 기억될 거야', '작은 기적이 일어난 날', '눈부시게 빛났던 하루',
+      '세상에서 가장 소중한 순간', '함께여서 행복했던 그때',
+    ],
+    travel: [
+      '설레임이 가득했던 그날', '잊을 수 없는 풍경 속에서', '여행이 우리에게 준 선물',
+      '그곳에서 우리는 더 가까워졌다', '새로운 세상을 만난 하루',
+    ],
+    memory: [
+      '그리움으로 남은 소중한 순간', '영원히 간직하고 싶은 기억', '시간이 지나도 잊지 못할 날',
+      '마음속에 영원히 새겨진 순간', '함께했기에 더욱 빛났던 그날',
+    ],
+  }
+
+  function getRandomCaption(t) {
+    const list = mockCaptions[t] || mockCaptions.child
+    return list[Math.floor(Math.random() * list.length)]
+  }
+
   if (process.env.NODE_ENV === 'development') {
     log('[claudeService] caption Mock 반환 (development)')
-    return { caption: highlight + '의 순간' }
+    return { caption: getRandomCaption(type) }
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
     log('[claudeService] caption Mock 반환 (ANTHROPIC_API_KEY 없음)')
-    return { caption: highlight + '의 순간' }
+    return { caption: getRandomCaption(type) }
   }
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
