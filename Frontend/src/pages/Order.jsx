@@ -1,196 +1,411 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useApp } from '../context/AppContext'
+import { estimateOrder, createOrder } from '../api/orderApi'
+import { getCredits } from '../api/creditsApi'
 
-const PRICE = {
-  item: 60400,
-  shipping: 3500,
-  packaging: 500,
+const STORAGE_KEY = 'shipping_addresses'
+
+function loadAddresses() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
+  } catch {
+    return []
+  }
 }
-const TOTAL = PRICE.item + PRICE.shipping + PRICE.packaging
+
+function saveAddressToStorage(addr) {
+  const list = loadAddresses()
+  if (list.length === 0) addr.is_default = true
+  list.push(addr)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+}
+
+const EMPTY_FORM = {
+  recipient_name: '',
+  recipient_phone: '',
+  postal_code: '',
+  address1: '',
+  address2: '',
+  memo: '',
+}
 
 export default function Order() {
   const navigate = useNavigate()
-  const [addressOpen, setAddressOpen] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [form, setForm] = useState({
-    name: '',
-    phone: '',
-    zipCode: '',
-    address: '',
-    addressDetail: '',
-  })
-  const [savedForm, setSavedForm] = useState(null)
+  const { state, dispatch } = useApp()
 
-  const updateForm = (field, value) => {
+  // Estimate & credits
+  const [estimate, setEstimate] = useState(null)
+  const [credits, setCredits] = useState(null)
+  const [loadingData, setLoadingData] = useState(true)
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState('saved')
+  const [savedAddresses, setSavedAddresses] = useState(loadAddresses)
+  const [selectedAddressId, setSelectedAddressId] = useState(null)
+
+  // New address form
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saveNewAddress, setSaveNewAddress] = useState(false)
+
+  // Order
+  const [ordering, setOrdering] = useState(false)
+  const [error, setError] = useState(null)
+
+  // Insufficient credit modal
+  const [creditModal, setCreditModal] = useState(null)
+
+  // Auto-select default address
+  useEffect(() => {
+    const def = savedAddresses.find((a) => a.is_default)
+    if (def) setSelectedAddressId(def.id)
+    else if (savedAddresses.length > 0) setSelectedAddressId(savedAddresses[0].id)
+  }, [])
+
+  // Fetch estimate + credits on mount
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const [estRes, credRes] = await Promise.all([
+          estimateOrder(state.bookUid),
+          getCredits(),
+        ])
+        setEstimate(estRes.data?.data || estRes.data)
+        setCredits(credRes.data?.data || credRes.data)
+      } catch {
+        setError('금액 정보를 불러오지 못했습니다')
+      } finally {
+        setLoadingData(false)
+      }
+    }
+    fetch()
+  }, [state.bookUid])
+
+  const handleFormChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSave = () => {
-    setSavedForm({ ...form })
-    setSaved(true)
-    setAddressOpen(false)
-  }
-
-  const handleCancel = () => {
-    if (savedForm) {
-      setForm({ ...savedForm })
-    } else {
-      setForm({ name: '', phone: '', zipCode: '', address: '', addressDetail: '' })
+  const getShippingData = () => {
+    if (activeTab === 'saved') {
+      const addr = savedAddresses.find((a) => a.id === selectedAddressId)
+      if (!addr) return null
+      return {
+        recipient_name: addr.recipient_name,
+        recipient_phone: addr.recipient_phone,
+        postal_code: addr.postal_code,
+        address1: addr.address1,
+        address2: addr.address2,
+        memo: addr.memo,
+      }
     }
-    setAddressOpen(false)
+    if (!form.recipient_name || !form.recipient_phone || !form.address1) return null
+    return { ...form }
   }
 
-  const inputClass =
-    'w-full px-4 py-3 rounded-xl border border-[#E5E5E3] bg-white text-[#1A1A1A] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/30 focus:border-[#2D6A4F] placeholder:text-[#ACACAC]'
+  const handleOrder = async () => {
+    const shipping = getShippingData()
+    if (!shipping) {
+      setError('배송지를 입력해주세요')
+      return
+    }
+    setOrdering(true)
+    setError(null)
+    try {
+      // Save new address if checked
+      if (activeTab === 'new' && saveNewAddress) {
+        const newAddr = { ...form, id: Date.now(), is_default: false }
+        saveAddressToStorage(newAddr)
+      }
+      const res = await createOrder(state.bookUid, shipping)
+      const orderUid = res.data?.data?.orderUid || res.data?.orderUid || res.data?.uid
+      dispatch({ type: 'SET_ORDER_UID', payload: orderUid })
+      navigate('/complete')
+    } catch (err) {
+      if (err.type === 'INSUFFICIENT_CREDIT' || err.response?.status === 402) {
+        const data = err.response?.data?.data || err
+        setCreditModal({
+          required: data.required,
+          balance: data.balance,
+        })
+      } else {
+        setError(err.response?.data?.message || err.message || '주문에 실패했습니다')
+      }
+    }
+    setOrdering(false)
+  }
+
+  const itemPrice = estimate?.itemPrice ?? estimate?.item ?? 0
+  const shippingPrice = estimate?.shippingPrice ?? estimate?.shipping ?? 0
+  const packagingPrice = estimate?.packagingPrice ?? estimate?.packaging ?? 0
+  const totalPrice = estimate?.totalPrice ?? estimate?.total ?? itemPrice + shippingPrice + packagingPrice
+  const balance = credits?.balance ?? credits?.amount ?? 0
+
+  const canOrder = activeTab === 'saved' ? !!selectedAddressId : (form.recipient_name && form.recipient_phone && form.address1)
 
   return (
-    <div className="min-h-screen px-4 py-8 max-w-2xl mx-auto">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1">주문하기</h1>
-        <p className="text-sm text-[#6B6B6B]">주문 내역을 확인해주세요</p>
-      </div>
-
-      {/* Price Summary Card */}
-      <div className="bg-white rounded-xl border border-[#E5E5E3] p-5 mb-6">
-        <h3 className="text-xs font-medium text-[#1A1A1A] mb-4 uppercase tracking-wider">예상 금액</h3>
-        <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between text-[#6B6B6B]">
-            <span>상품 금액</span>
-            <span>{PRICE.item.toLocaleString()}원</span>
-          </div>
-          <div className="flex justify-between text-[#6B6B6B]">
-            <span>배송비</span>
-            <span>{PRICE.shipping.toLocaleString()}원</span>
-          </div>
-          <div className="flex justify-between text-[#6B6B6B]">
-            <span>포장비</span>
-            <span>{PRICE.packaging.toLocaleString()}원</span>
-          </div>
-          <div className="border-t border-[#E5E5E3] pt-3 mt-3 flex justify-between font-bold text-[#1A1A1A]">
-            <span>총 결제 금액</span>
-            <span className="text-[#2D6A4F] text-lg">
-              {TOTAL.toLocaleString()}원
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Shipping Address - Collapsible */}
-      <div className="bg-white rounded-xl border border-[#E5E5E3] mb-8 overflow-hidden">
-        {/* Toggle Header */}
-        <button
-          onClick={() => setAddressOpen(!addressOpen)}
-          className="w-full flex items-center justify-between p-5 cursor-pointer hover:bg-[#FAFAF9] transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <svg className="w-4 h-4 text-[#2D6A4F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-            </svg>
-            <span className="text-xs font-medium text-[#1A1A1A] uppercase tracking-wider">배송지 정보</span>
-            {saved && (
-              <span className="text-[10px] text-[#2D6A4F] bg-[#2D6A4F]/10 px-2 py-0.5 rounded-full font-medium">
-                저장됨
-              </span>
-            )}
-          </div>
-          <svg
-            className={`w-4 h-4 text-[#6B6B6B] transition-transform duration-200 ${addressOpen ? 'rotate-180' : ''}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-          </svg>
-        </button>
-
-        {/* Saved Address Preview */}
-        {!addressOpen && saved && savedForm && (
-          <div className="px-5 pb-4 text-sm text-[#6B6B6B]">
-            <p>{savedForm.name} / {savedForm.phone}</p>
-            <p>{savedForm.address} {savedForm.addressDetail}</p>
-          </div>
-        )}
-
-        {/* Expandable Form */}
-        {addressOpen && (
-          <div className="px-5 pb-5 border-t border-[#F0F0EE]">
-            <div className="space-y-3 pt-4">
-              <input
-                type="text"
-                placeholder="받는 사람"
-                value={form.name}
-                onChange={(e) => updateForm('name', e.target.value)}
-                className={inputClass}
-              />
-              <input
-                type="tel"
-                placeholder="전화번호 (예: 010-1234-5678)"
-                value={form.phone}
-                onChange={(e) => updateForm('phone', e.target.value)}
-                className={inputClass}
-              />
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="우편번호"
-                  value={form.zipCode}
-                  onChange={(e) => updateForm('zipCode', e.target.value)}
-                  className={`${inputClass} flex-1`}
-                />
-                <button className="px-4 py-3 rounded-xl border border-[#2D6A4F] text-[#2D6A4F] font-medium text-xs hover:bg-[#2D6A4F]/5 transition-colors cursor-pointer whitespace-nowrap">
-                  주소 검색
-                </button>
-              </div>
-              <input
-                type="text"
-                placeholder="주소"
-                value={form.address}
-                onChange={(e) => updateForm('address', e.target.value)}
-                className={inputClass}
-              />
-              <input
-                type="text"
-                placeholder="상세주소"
-                value={form.addressDetail}
-                onChange={(e) => updateForm('addressDetail', e.target.value)}
-                className={inputClass}
-              />
-            </div>
-
-            {/* Save / Cancel Buttons */}
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={handleCancel}
-                className="flex-1 py-2.5 rounded-xl border border-[#D1D1CF] text-[#6B6B6B] font-medium text-sm hover:bg-[#EEEEEC] transition-colors cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSave}
-                className="flex-1 py-2.5 rounded-xl bg-[#2D6A4F] text-white font-medium text-sm hover:bg-[#245A42] transition-colors cursor-pointer"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex gap-3">
+      <header className="flex items-center justify-between px-6 py-4">
         <button
           onClick={() => navigate('/preview')}
-          className="flex-1 py-3 rounded-xl border border-[#D1D1CF] text-[#6B6B6B] font-medium text-sm hover:bg-[#EEEEEC] transition-colors cursor-pointer"
+          className="text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors duration-200 cursor-pointer"
         >
-          이전
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+          </svg>
         </button>
-        <button
-          onClick={() => navigate('/complete')}
-          className="flex-1 py-3 rounded-xl bg-[#2D6A4F] text-white font-medium text-sm hover:bg-[#245A42] transition-colors cursor-pointer"
-        >
-          주문 완료
-        </button>
-      </div>
+        <h2 className="text-base font-semibold text-[#1A1A1A]">주문하기</h2>
+        <div className="w-5" />
+      </header>
+
+      <main className="flex-1 px-4 pb-16">
+        <div className="max-w-lg mx-auto">
+
+          {/* Price Card */}
+          <div className="bg-white rounded-xl border border-[#E5E5E3] p-5 mb-4">
+            <h3 className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider mb-4">예상 금액</h3>
+            {loadingData ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-4 bg-[#F0F0EE] rounded animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2.5 text-sm">
+                <div className="flex justify-between text-[#6B6B6B]">
+                  <span>상품 금액</span>
+                  <span>{itemPrice.toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between text-[#6B6B6B]">
+                  <span>배송비</span>
+                  <span>{shippingPrice.toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between text-[#6B6B6B]">
+                  <span>포장비</span>
+                  <span>{packagingPrice.toLocaleString()}원</span>
+                </div>
+                <div className="border-t border-[#E5E5E3] pt-3 mt-3 flex justify-between font-bold text-[#1A1A1A]">
+                  <span>총 결제 금액</span>
+                  <span className="text-primary text-lg">{totalPrice.toLocaleString()}원</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Credits */}
+          {!loadingData && (
+            <div className="bg-white rounded-xl border border-[#E5E5E3] p-4 mb-6 flex justify-between items-center">
+              <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">보유 잔액</span>
+              <span className="text-sm font-bold text-primary">{balance.toLocaleString()}원</span>
+            </div>
+          )}
+
+          {/* Shipping Tabs */}
+          <div className="bg-white rounded-xl border border-[#E5E5E3] overflow-hidden mb-8">
+            <div className="flex border-b border-[#E5E5E3]">
+              <button
+                onClick={() => setActiveTab('saved')}
+                className={`flex-1 py-3 text-sm font-medium text-center transition-colors duration-200 cursor-pointer ${
+                  activeTab === 'saved'
+                    ? 'text-primary border-b-2 border-primary'
+                    : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
+                }`}
+              >
+                저장된 배송지
+              </button>
+              <button
+                onClick={() => setActiveTab('new')}
+                className={`flex-1 py-3 text-sm font-medium text-center transition-colors duration-200 cursor-pointer ${
+                  activeTab === 'new'
+                    ? 'text-primary border-b-2 border-primary'
+                    : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
+                }`}
+              >
+                새 배송지
+              </button>
+            </div>
+
+            <div className="p-4">
+              {activeTab === 'saved' ? (
+                savedAddresses.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-[#6B6B6B] mb-2">저장된 배송지가 없습니다</p>
+                    <Link
+                      to="/shipping"
+                      className="text-xs text-primary hover:text-primary-dark font-medium transition-colors duration-200"
+                    >
+                      배송지 관리
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {savedAddresses.map((addr) => (
+                      <label
+                        key={addr.id}
+                        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors duration-200 ${
+                          selectedAddressId === addr.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-[#E5E5E3] hover:border-[#D1D1CF]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="address"
+                          checked={selectedAddressId === addr.id}
+                          onChange={() => setSelectedAddressId(addr.id)}
+                          className="mt-1 accent-[#2D6A4F]"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-semibold text-[#1A1A1A]">{addr.recipient_name}</span>
+                            {addr.is_default && (
+                              <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                기본
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#6B6B6B]">{addr.recipient_phone}</p>
+                          <p className="text-xs text-[#6B6B6B] truncate">
+                            {addr.postal_code && `(${addr.postal_code}) `}{addr.address1}{addr.address2 && ` ${addr.address2}`}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                    <Link
+                      to="/shipping"
+                      className="block text-center text-xs text-primary hover:text-primary-dark font-medium mt-2 transition-colors duration-200"
+                    >
+                      배송지 관리
+                    </Link>
+                  </div>
+                )
+              ) : (
+                /* New Address Tab */
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">받는 사람</label>
+                    <input
+                      type="text"
+                      value={form.recipient_name}
+                      onChange={(e) => handleFormChange('recipient_name', e.target.value)}
+                      placeholder="이름을 입력하세요"
+                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">전화번호</label>
+                    <input
+                      type="tel"
+                      value={form.recipient_phone}
+                      onChange={(e) => handleFormChange('recipient_phone', e.target.value)}
+                      placeholder="010-0000-0000"
+                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">우편번호</label>
+                    <input
+                      type="text"
+                      value={form.postal_code}
+                      onChange={(e) => handleFormChange('postal_code', e.target.value)}
+                      placeholder="우편번호"
+                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">주소</label>
+                    <input
+                      type="text"
+                      value={form.address1}
+                      onChange={(e) => handleFormChange('address1', e.target.value)}
+                      placeholder="주소를 입력하세요"
+                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">상세주소</label>
+                    <input
+                      type="text"
+                      value={form.address2}
+                      onChange={(e) => handleFormChange('address2', e.target.value)}
+                      placeholder="상세주소를 입력하세요"
+                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">배송 메모</label>
+                    <input
+                      type="text"
+                      value={form.memo}
+                      onChange={(e) => handleFormChange('memo', e.target.value)}
+                      placeholder="배송 메모를 입력하세요"
+                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={saveNewAddress}
+                      onChange={(e) => setSaveNewAddress(e.target.checked)}
+                      className="accent-[#2D6A4F]"
+                    />
+                    <span className="text-xs text-[#6B6B6B]">이 배송지 저장하기</span>
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+
+          {/* Order Button */}
+          <button
+            onClick={handleOrder}
+            disabled={ordering || !canOrder}
+            className={`w-full text-white text-base font-medium py-4 rounded-xl transition-colors duration-200 ${
+              ordering || !canOrder
+                ? 'bg-[#D1D1CF] cursor-not-allowed'
+                : 'bg-primary hover:bg-primary-dark cursor-pointer'
+            }`}
+          >
+            {ordering ? '주문 처리 중...' : '주문 완료'}
+          </button>
+        </div>
+      </main>
+
+      {/* Insufficient Credit Modal */}
+      {creditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-4">충전금이 부족합니다</h3>
+            <div className="space-y-2 mb-6">
+              <div className="flex justify-between text-sm">
+                <span className="text-[#6B6B6B]">필요 금액</span>
+                <span className="font-semibold text-[#1A1A1A]">{(creditModal.required ?? 0).toLocaleString()}원</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-[#6B6B6B]">현재 잔액</span>
+                <span className="font-semibold text-red-500">{(creditModal.balance ?? 0).toLocaleString()}원</span>
+              </div>
+            </div>
+            <a
+              href="https://partner.sweetbook.kr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center bg-primary hover:bg-primary-dark text-white text-sm font-medium py-3 rounded-xl transition-colors duration-200 mb-3"
+            >
+              파트너 포털에서 충전하기
+            </a>
+            <button
+              onClick={() => setCreditModal(null)}
+              className="w-full text-center text-sm text-[#6B6B6B] hover:text-[#1A1A1A] font-medium py-2 cursor-pointer transition-colors duration-200"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

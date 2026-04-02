@@ -34,7 +34,7 @@ export default function InputForm() {
 
   const handleNext = () => {
     if (!state.name || !state.birthYear || !state.albumYear) return
-    navigate('/loading')
+    navigate('/preview')
   }
 
   const isValid = state.name && state.birthYear && state.albumYear
