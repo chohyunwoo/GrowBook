@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 
 const DUMMY_COVER_IMAGE = 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=400&h=400&fit=crop'
 
 export default function AlbumView() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state } = useApp()
   const [currentPage, setCurrentPage] = useState(0)
@@ -12,7 +14,7 @@ export default function AlbumView() {
   const story = state.generatedStory || {}
   const coverImage = state.coverImagePreview || DUMMY_COVER_IMAGE
   const coverTitle = state.name && state.albumYear
-    ? `${state.name}의 ${state.albumYear}년`
+    ? t('preview.coverTitle', { name: state.name, year: state.albumYear })
     : ''
   const dateRange = state.albumYear ? `${state.albumYear}.01 - ${state.albumYear}.12` : ''
 
@@ -54,8 +56,8 @@ export default function AlbumView() {
           </svg>
         </button>
         <div className="text-center">
-          <h2 className="text-base font-semibold text-[#1A1A1A]">최종 앨범 미리보기</h2>
-          <p className="text-[10px] text-[#ACACAC]">총 {totalPages}페이지</p>
+          <h2 className="text-base font-semibold text-[#1A1A1A]">{t('albumView.header')}</h2>
+          <p className="text-[10px] text-[#ACACAC]">{t('albumView.totalPages', { count: totalPages })}</p>
         </div>
         <div className="w-5" />
       </header>
@@ -104,7 +106,7 @@ export default function AlbumView() {
                 {/* Story */}
                 {page.type === 'story' && (
                   <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-                    <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">AI 성장 스토리</p>
+                    <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">{t('preview.storyLabel')}</p>
                     <p className="text-sm text-[#4A4A4A] leading-relaxed whitespace-pre-wrap flex-1">
                       {story.story || ''}
                     </p>
@@ -129,12 +131,12 @@ export default function AlbumView() {
                     {/* Text */}
                     <div className="flex-1 p-5 flex flex-col justify-center">
                       <p className="text-lg font-bold text-primary mb-2">
-                        {page.type === 'month' && `${page.month}월`}
-                        {page.type === 'travel' && `Day ${page.index + 1}`}
-                        {page.type === 'memory' && `순간 ${page.index + 1}`}
+                        {page.type === 'month' && t('preview.monthLabel', { month: page.month })}
+                        {page.type === 'travel' && t('preview.dayLabel', { index: page.index + 1 })}
+                        {page.type === 'memory' && t('preview.momentLabel', { index: page.index + 1 })}
                       </p>
                       <p className="text-sm text-[#4A4A4A] leading-relaxed">
-                        {page.content || (page.type === 'month' ? '이달은 조용히 흘러갔어요.' : '')}
+                        {page.content || (page.type === 'month' ? t('preview.quietMonth') : '')}
                       </p>
                       {page.caption && (
                         <p className="text-xs text-primary/80 italic mt-2 leading-relaxed">{page.caption}</p>
@@ -168,13 +170,13 @@ export default function AlbumView() {
               onClick={() => navigate('/preview')}
               className="flex-1 border border-[#E5E5E3] text-[#6B6B6B] hover:text-[#1A1A1A] hover:bg-[#F7F7F5] text-base font-medium py-4 rounded-xl transition-colors duration-200 cursor-pointer"
             >
-              다시 수정하기
+              {t('albumView.editAgain')}
             </button>
             <button
               onClick={() => navigate('/order')}
               className="flex-1 bg-primary hover:bg-primary-dark text-white text-base font-medium py-4 rounded-xl transition-colors duration-200 cursor-pointer"
             >
-              주문하기
+              {t('albumView.order')}
             </button>
           </div>
         </div>

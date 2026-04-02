@@ -1,18 +1,21 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { createBookWithImages } from '../api/bookApi'
 
-const STEPS = [
-  { id: 1, label: '앨범 데이터 구성 중' },
-  { id: 2, label: '표지 정보 설정 중' },
-  { id: 3, label: '내지 구성 중' },
-  { id: 4, label: '최종 검토 중' },
-]
-
 export default function Loading() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
+
+  const STEPS = [
+    { id: 1, label: t('loading.step1') },
+    { id: 2, label: t('loading.step2') },
+    { id: 3, label: t('loading.step3') },
+    { id: 4, label: t('loading.step4') },
+  ]
+
   const [steps, setSteps] = useState(
     STEPS.map((s) => ({ ...s, status: 'pending' }))
   )
@@ -34,9 +37,8 @@ export default function Loading() {
     const story = state.generatedStory || {}
 
     try {
-      // Step 1: 앨범 데이터 구성 (POST /api/books/create)
+      // Step 1
       updateStep(1, 'loading')
-      // Format highlights by type
       let highlights
       if (state.type === 'travel') {
         highlights = state.highlights
@@ -45,7 +47,7 @@ export default function Loading() {
       } else if (state.type === 'memory') {
         highlights = state.highlights
           .filter((h) => h.content)
-          .map((h, i) => ({ title: `순간 ${i + 1}`, content: h.content }))
+          .map((h, i) => ({ title: `Moment ${i + 1}`, content: h.content }))
       } else {
         highlights = state.highlights
       }
@@ -63,7 +65,6 @@ export default function Loading() {
         bookData.coverImageFileName = state.coverImageFileName
       }
 
-      // Collect highlight image files
       const highlightImages = state.highlights.map((h) => h.imageFile || null)
 
       console.log('POST /api/books/create params:', bookData)
@@ -72,14 +73,12 @@ export default function Loading() {
       dispatch({ type: 'SET_BOOK_UID', payload: bookUid })
       updateStep(1, 'done')
 
-      // Step 2~4: 후속 처리 (UI 피드백용)
       for (const stepId of [2, 3, 4]) {
         updateStep(stepId, 'loading')
         await new Promise((resolve) => setTimeout(resolve, 600))
         updateStep(stepId, 'done')
       }
 
-      // 완료 후 /order 이동
       setTimeout(() => navigate('/album-view'), 500)
     } catch (err) {
       setSteps((prev) =>
@@ -87,7 +86,7 @@ export default function Loading() {
           s.status === 'loading' ? { ...s, status: 'error' } : s
         )
       )
-      setError(err.response?.data?.message || err.message || '오류가 발생했습니다')
+      setError(err.response?.data?.message || err.message || t('errors.generic'))
       running.current = false
     }
   }
@@ -105,10 +104,10 @@ export default function Loading() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       <div className="max-w-sm w-full">
         <h1 className="text-2xl font-bold text-[#1A1A1A] text-center mb-2">
-          앨범을 만들고 있어요
+          {t('loading.title')}
         </h1>
         <p className="text-sm text-[#6B6B6B] text-center mb-10">
-          잠시만 기다려주세요
+          {t('loading.subtitle')}
         </p>
 
         {/* Steps */}
@@ -162,7 +161,7 @@ export default function Loading() {
               onClick={handleRetry}
               className="bg-primary hover:bg-primary-dark text-white text-sm font-medium py-3 px-8 rounded-xl transition-colors duration-200 cursor-pointer"
             >
-              다시 시도
+              {t('buttons.retry')}
             </button>
           </div>
         )}

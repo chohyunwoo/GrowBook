@@ -1,21 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { signOut } from '../lib/supabase'
 import { getOrder, cancelOrder } from '../api/orderApi'
 import ShippingManager from './ShippingManager'
-
-const ORDER_STATUS = {
-  20: '결제 완료',
-  25: '제작 준비 완료',
-  30: '제작 확정',
-  40: '제작 진행 중',
-  50: '제작 완료',
-  60: '배송 중',
-  70: '배송 완료',
-  80: '주문 취소',
-  81: '취소 및 환불 완료',
-}
 
 const STORAGE_KEY = 'my_order_uids'
 
@@ -28,6 +17,7 @@ function loadOrderUids() {
 }
 
 export default function MyPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
   const user = state.user
@@ -55,7 +45,7 @@ export default function MyPage() {
         const data = res.data?.data || res.data
         results.push({ orderUid: uid, ...data })
       } catch {
-        results.push({ orderUid: uid, status: null, title: '조회 실패' })
+        results.push({ orderUid: uid, status: null, title: null })
       }
     }
     setOrders(results)
@@ -65,7 +55,7 @@ export default function MyPage() {
   const handleCancel = async (orderUid) => {
     setCancellingId(orderUid)
     try {
-      await cancelOrder(orderUid, '고객 요청으로 인한 취소')
+      await cancelOrder(orderUid, t('complete.cancelReasonPlaceholder'))
       await fetchOrders()
     } catch {
       /* ignore */
@@ -90,9 +80,9 @@ export default function MyPage() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4">
         <Link to="/" className="text-2xl font-bold text-primary">
-          GrowBook
+          {t('brand')}
         </Link>
-        <h2 className="text-base font-semibold text-[#1A1A1A]">마이페이지</h2>
+        <h2 className="text-base font-semibold text-[#1A1A1A]">{t('myPage.header')}</h2>
         <div className="w-16" />
       </header>
 
@@ -118,7 +108,7 @@ export default function MyPage() {
               onClick={handleLogout}
               className="mt-4 w-full border border-[#E5E5E3] text-[#6B6B6B] hover:text-[#1A1A1A] hover:bg-[#F7F7F5] text-sm font-medium py-2.5 rounded-xl transition-colors duration-200 cursor-pointer"
             >
-              로그아웃
+              {t('nav.logout')}
             </button>
           </div>
 
@@ -132,7 +122,7 @@ export default function MyPage() {
                   : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
               }`}
             >
-              내 주문
+              {t('myPage.ordersTab')}
             </button>
             <button
               onClick={() => setActiveTab('shipping')}
@@ -142,7 +132,7 @@ export default function MyPage() {
                   : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
               }`}
             >
-              배송지 관리
+              {t('myPage.shippingTab')}
             </button>
           </div>
 
@@ -155,19 +145,19 @@ export default function MyPage() {
                 </div>
               ) : orders.length === 0 ? (
                 <div className="text-center py-16">
-                  <p className="text-sm text-[#6B6B6B] mb-2">아직 주문 내역이 없어요.</p>
+                  <p className="text-sm text-[#6B6B6B] mb-2">{t('myPage.noOrders')}</p>
                   <Link
                     to="/type-select"
                     className="text-sm text-primary hover:text-primary-dark font-medium transition-colors duration-200"
                   >
-                    앨범 만들기
+                    {t('myPage.makeAlbum')}
                   </Link>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {orders.map((order) => {
                     const status = order.status ?? order.orderStatus
-                    const statusText = ORDER_STATUS[status] || '확인 중'
+                    const statusText = t(`orderStatus.${status}`, t('checking'))
                     const canCancel = status === 20 || status === 25
                     const isCancelling = cancellingId === order.orderUid
                     return (
@@ -178,7 +168,7 @@ export default function MyPage() {
                         <div className="flex items-start justify-between mb-2">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-[#1A1A1A] truncate">
-                              {order.title || order.bookTitle || '앨범'}
+                              {order.title || order.bookTitle || t('myPage.album')}
                             </p>
                             <p className="text-[10px] text-[#ACACAC] font-mono mt-0.5">{order.orderUid}</p>
                           </div>
@@ -207,7 +197,7 @@ export default function MyPage() {
                                 : 'text-red-500 hover:text-red-600 cursor-pointer'
                             }`}
                           >
-                            {isCancelling ? '취소 중...' : '주문 취소'}
+                            {isCancelling ? t('myPage.cancelling') : t('myPage.cancelOrder')}
                           </button>
                         )}
                       </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { getTemplates } from '../api/templateApi'
 import { generateStory, generateCaption } from '../api/storyApi'
@@ -9,6 +10,7 @@ const DEFAULT_CONTENT_TEMPLATE = 'vHA59XPPKqak'
 const DUMMY_COVER_IMAGE = 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=400&h=400&fit=crop'
 
 export default function Preview() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
   const fileInputRef = useRef(null)
@@ -38,8 +40,8 @@ export default function Preview() {
   const story = state.generatedStory || {}
   const coverImage = state.coverImagePreview || DUMMY_COVER_IMAGE
   const coverTitle = state.name && state.albumYear
-    ? `${state.name}의 ${state.albumYear}년`
-    : '제목 미리보기'
+    ? t('preview.coverTitle', { name: state.name, year: state.albumYear })
+    : t('preview.titlePreview')
   const dateRange = state.albumYear ? `${state.albumYear}.01 - ${state.albumYear}.12` : ''
 
   // Set defaults on mount
@@ -159,7 +161,7 @@ export default function Preview() {
         period: state.birthYear,
         highlights: state.highlights
           .filter((h) => h.content)
-          .map((h, i) => ({ title: h.title || `순간 ${i + 1}`, content: h.content })),
+          .map((h, i) => ({ title: h.title || `Moment ${i + 1}`, content: h.content })),
       }
     }
     return {
@@ -177,7 +179,7 @@ export default function Preview() {
       const birth = Number(state.birthYear)
       const album = Number(state.albumYear)
       if (birth && album && album < birth) {
-        setGenerateError('앨범 연도는 태어난 연도 이후여야 합니다')
+        setGenerateError(t('errors.albumYearError'))
         return
       }
     }
@@ -190,7 +192,7 @@ export default function Preview() {
       const result = res.data?.data || res.data
       dispatch({ type: 'SET_GENERATED_STORY', payload: result })
     } catch (err) {
-      setGenerateError(err.response?.data?.message || err.message || '스토리 생성에 실패했습니다')
+      setGenerateError(err.response?.data?.message || err.message || t('errors.storyFailed'))
     }
     setGenerating(false)
   }
@@ -254,7 +256,7 @@ export default function Preview() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
           </svg>
         </button>
-        <h2 className="text-base font-semibold text-[#1A1A1A]">앨범 미리보기</h2>
+        <h2 className="text-base font-semibold text-[#1A1A1A]">{t('preview.header')}</h2>
         <div className="w-5" />
       </header>
 
@@ -302,7 +304,7 @@ export default function Preview() {
                         className="h-7 px-2.5 rounded-full bg-white/80 hover:bg-white flex items-center gap-1 text-[#6B6B6B] hover:text-primary text-[10px] font-medium transition-colors duration-200 cursor-pointer shadow-sm"
                       >
                         <PencilIcon />
-                        <span>사진 변경</span>
+                        <span>{t('preview.changePhoto')}</span>
                       </button>
                       {state.coverImagePreview && (
                         <button
@@ -322,7 +324,7 @@ export default function Preview() {
                 {/* Story page */}
                 {page.type === 'story' && (
                   <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-                    <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">AI 성장 스토리</p>
+                    <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">{t('preview.storyLabel')}</p>
                     <p className="text-sm text-[#4A4A4A] leading-relaxed whitespace-pre-wrap flex-1">
                       {story.story || ''}
                     </p>
@@ -343,7 +345,7 @@ export default function Preview() {
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                           </svg>
-                          <span>삭제</span>
+                          <span>{t('preview.deletePhoto')}</span>
                         </button>
                       </div>
                     ) : (
@@ -354,7 +356,7 @@ export default function Preview() {
                         <svg className="w-7 h-7 text-[#D1D1CF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
                         </svg>
-                        <span className="text-xs text-[#ACACAC]">사진 추가</span>
+                        <span className="text-xs text-[#ACACAC]">{t('preview.addPhoto')}</span>
                       </button>
                     )}
                     <input
@@ -367,12 +369,12 @@ export default function Preview() {
                     {/* Text content */}
                     <div className="flex-1 p-5 flex flex-col justify-center">
                       <p className="text-lg font-bold text-primary mb-2">
-                        {page.type === 'month' && `${page.month}월`}
-                        {page.type === 'travel' && `Day ${page.index + 1}`}
-                        {page.type === 'memory' && `순간 ${page.index + 1}`}
+                        {page.type === 'month' && t('preview.monthLabel', { month: page.month })}
+                        {page.type === 'travel' && t('preview.dayLabel', { index: page.index + 1 })}
+                        {page.type === 'memory' && t('preview.momentLabel', { index: page.index + 1 })}
                       </p>
                       <p className="text-sm text-[#4A4A4A] leading-relaxed">
-                        {page.content || (page.type === 'month' ? '이달은 조용히 흘러갔어요.' : '')}
+                        {page.content || (page.type === 'month' ? t('preview.quietMonth') : '')}
                       </p>
                       {/* Caption */}
                       {page.caption && (
@@ -392,14 +394,14 @@ export default function Preview() {
                           {captionLoading === page.month ? (
                             <>
                               <span className="w-3 h-3 border-2 border-[#ACACAC] border-t-transparent rounded-full animate-spin" />
-                              <span>생성 중...</span>
+                              <span>{t('preview.generating')}</span>
                             </>
                           ) : (
                             <>
                               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                               </svg>
-                              <span>{page.caption ? 'AI 캡션 재생성' : 'AI 캡션 생성'}</span>
+                              <span>{page.caption ? t('preview.regenerateCaption') : t('preview.generateCaption')}</span>
                             </>
                           )}
                         </button>
@@ -433,14 +435,14 @@ export default function Preview() {
               {/* Title */}
               <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">제목</span>
+                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.titleLabel')}</span>
                   {!editingTitle && (
                     <button
                       onClick={() => { setEditingTitle(true); setTitleDraft(story.title || '') }}
                       className="flex items-center gap-1 text-xs text-primary font-medium cursor-pointer hover:text-primary-dark transition-colors duration-200"
                     >
                       <PencilIcon />
-                      <span>수정</span>
+                      <span>{t('buttons.edit')}</span>
                     </button>
                   )}
                 </div>
@@ -460,13 +462,13 @@ export default function Preview() {
                       }}
                       className="text-xs bg-primary text-white px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-dark transition-colors duration-200"
                     >
-                      저장
+                      {t('buttons.save')}
                     </button>
                     <button
                       onClick={() => setEditingTitle(false)}
                       className="text-xs text-[#6B6B6B] px-2 py-2 cursor-pointer hover:text-[#1A1A1A] transition-colors duration-200"
                     >
-                      취소
+                      {t('buttons.cancel')}
                     </button>
                   </div>
                 ) : (
@@ -477,14 +479,14 @@ export default function Preview() {
               {/* Subtitle */}
               <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">부제</span>
+                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.subtitleLabel')}</span>
                   {!editingSubtitle && (
                     <button
                       onClick={() => { setEditingSubtitle(true); setSubtitleDraft(story.subtitle || '') }}
                       className="flex items-center gap-1 text-xs text-primary font-medium cursor-pointer hover:text-primary-dark transition-colors duration-200"
                     >
                       <PencilIcon />
-                      <span>수정</span>
+                      <span>{t('buttons.edit')}</span>
                     </button>
                   )}
                 </div>
@@ -504,13 +506,13 @@ export default function Preview() {
                       }}
                       className="text-xs bg-primary text-white px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-dark transition-colors duration-200"
                     >
-                      저장
+                      {t('buttons.save')}
                     </button>
                     <button
                       onClick={() => setEditingSubtitle(false)}
                       className="text-xs text-[#6B6B6B] px-2 py-2 cursor-pointer hover:text-[#1A1A1A] transition-colors duration-200"
                     >
-                      취소
+                      {t('buttons.cancel')}
                     </button>
                   </div>
                 ) : (
@@ -521,7 +523,7 @@ export default function Preview() {
               {/* Story */}
               <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">AI 성장 스토리</span>
+                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.storyLabel')}</span>
                   <button
                     onClick={handleRegenerateStory}
                     disabled={regeneratingStory}
@@ -532,21 +534,21 @@ export default function Preview() {
                     {regeneratingStory ? (
                       <>
                         <span className="w-3 h-3 border-2 border-[#ACACAC] border-t-transparent rounded-full animate-spin" />
-                        <span>생성 중...</span>
+                        <span>{t('preview.generating')}</span>
                       </>
                     ) : (
                       <>
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M2.985 19.644l3.181-3.183" />
                         </svg>
-                        <span>재생성</span>
+                        <span>{t('preview.regenerate')}</span>
                       </>
                     )}
                   </button>
                 </div>
                 <div className="max-h-40 overflow-y-auto">
                   <p className="text-sm text-[#4A4A4A] leading-relaxed whitespace-pre-wrap">
-                    {story.story || '스토리가 없습니다'}
+                    {story.story || t('preview.noStory')}
                   </p>
                 </div>
               </div>
@@ -558,7 +560,7 @@ export default function Preview() {
             onClick={() => setShowOptions(!showOptions)}
             className="w-full flex items-center justify-between px-4 py-3 mb-4 rounded-xl bg-white border border-[#E5E5E3] text-sm text-[#6B6B6B] hover:text-[#1A1A1A] cursor-pointer transition-colors duration-200"
           >
-            <span className="font-medium">고급 설정</span>
+            <span className="font-medium">{t('preview.advancedSettings')}</span>
             <svg
               className={`w-4 h-4 transition-transform duration-200 ${showOptions ? 'rotate-180' : ''}`}
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
@@ -571,54 +573,54 @@ export default function Preview() {
             <div className="space-y-3 mb-8">
               {/* Cover template */}
               <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">표지 템플릿</span>
+                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">{t('preview.coverTemplate')}</span>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-[#6B6B6B] font-mono">{state.selectedCoverTemplateUid || DEFAULT_COVER_TEMPLATE}</span>
                     {state.selectedCoverTemplateUid === DEFAULT_COVER_TEMPLATE && (
-                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">기본값</span>
+                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{t('preview.defaultValue')}</span>
                     )}
                   </div>
                   <button
                     onClick={() => openTemplatePicker('cover')}
                     className="text-xs text-primary border border-primary hover:bg-primary/5 font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 cursor-pointer"
                   >
-                    변경
+                    {t('buttons.change')}
                   </button>
                 </div>
               </div>
 
               {/* Content template */}
               <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">내지 템플릿</span>
+                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">{t('preview.contentTemplate')}</span>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-[#6B6B6B] font-mono">{state.selectedContentTemplateUid || DEFAULT_CONTENT_TEMPLATE}</span>
                     {state.selectedContentTemplateUid === DEFAULT_CONTENT_TEMPLATE && (
-                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">기본값</span>
+                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{t('preview.defaultValue')}</span>
                     )}
                   </div>
                   <button
                     onClick={() => openTemplatePicker('content')}
                     className="text-xs text-primary border border-primary hover:bg-primary/5 font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 cursor-pointer"
                   >
-                    변경
+                    {t('buttons.change')}
                   </button>
                 </div>
               </div>
 
               {/* Cover image */}
               <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">표지 이미지</span>
+                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">{t('preview.coverImage')}</span>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="text-xs text-primary border border-primary hover:bg-primary/5 font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 cursor-pointer"
                   >
-                    이미지 변경
+                    {t('preview.changeImage')}
                   </button>
                   <span className="text-xs text-[#ACACAC]">
-                    {state.coverImagePreview ? '사용자 이미지 적용됨' : '기본 이미지 적용됨'}
+                    {state.coverImagePreview ? t('preview.userImage') : t('preview.defaultImage')}
                   </span>
                 </div>
               </div>
@@ -632,7 +634,7 @@ export default function Preview() {
 
           {/* Action buttons */}
           <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-4 text-center leading-relaxed">
-            앨범은 최소 24페이지로 구성되며<br />부족한 페이지는 자동으로 채워져요.
+            {t('preview.pageHint')}
           </p>
 
           {!hasStory ? (
@@ -648,10 +650,10 @@ export default function Preview() {
               {generating ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  AI 스토리 생성 중...
+                  {t('preview.generatingStory')}
                 </span>
               ) : (
-                '앨범 미리보기 생성'
+                t('preview.generatePreview')
               )}
             </button>
           ) : (
@@ -659,7 +661,7 @@ export default function Preview() {
               onClick={() => navigate('/loading')}
               className="w-full text-white text-base font-medium py-4 rounded-xl bg-primary hover:bg-primary-dark cursor-pointer transition-colors duration-200"
             >
-              책 만들기
+              {t('preview.makeBook')}
             </button>
           )}
         </div>
@@ -672,7 +674,7 @@ export default function Preview() {
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E5E3]">
               <h3 className="text-base font-semibold text-[#1A1A1A]">
-                {templateModal === 'cover' ? '표지 템플릿 선택' : '내지 템플릿 선택'}
+                {templateModal === 'cover' ? t('preview.coverTemplateSelect') : t('preview.contentTemplateSelect')}
               </h3>
               <button
                 onClick={() => setTemplateModal(null)}
@@ -691,12 +693,12 @@ export default function Preview() {
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : templateList.length === 0 ? (
-                <p className="text-sm text-[#ACACAC] text-center py-12">템플릿이 없습니다</p>
+                <p className="text-sm text-[#ACACAC] text-center py-12">{t('preview.noTemplates')}</p>
               ) : (
                 <div className="space-y-2">
-                  {templateList.map((t) => {
-                    const uid = t.templateUid || t.uid || t.id
-                    const name = t.templateName || t.name || '템플릿'
+                  {templateList.map((tmpl) => {
+                    const uid = tmpl.templateUid || tmpl.uid || tmpl.id
+                    const name = tmpl.templateName || tmpl.name || 'Template'
                     const currentUid = templateModal === 'cover'
                       ? state.selectedCoverTemplateUid
                       : state.selectedContentTemplateUid

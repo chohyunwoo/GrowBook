@@ -1,27 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { getOrder, cancelOrder } from '../api/orderApi'
 
-const ORDER_STATUS = {
-  20: '결제 완료',
-  25: '제작 준비 완료',
-  30: '제작 확정',
-  40: '제작 진행 중',
-  50: '제작 완료',
-  60: '배송 중',
-  70: '배송 완료',
-  80: '주문 취소',
-  81: '취소 및 환불 완료',
-}
-
-function getDeliveryDate() {
+function getDeliveryDate(t) {
   const date = new Date()
   date.setDate(date.getDate() + 7)
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
+  return t('deliveryDate', {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+  })
 }
 
 export default function Complete() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
   const [order, setOrder] = useState(null)
@@ -40,7 +34,7 @@ export default function Complete() {
       setOrder(res.data?.data || res.data)
       setError(null)
     } catch {
-      setError('주문 정보를 불러오지 못했습니다')
+      setError(t('errors.orderLoadFailed'))
     }
   }
 
@@ -65,7 +59,7 @@ export default function Complete() {
   const handleCancel = async () => {
     setCancelling(true)
     try {
-      await cancelOrder(state.orderUid, cancelReason.trim() || '고객 요청으로 인한 취소')
+      await cancelOrder(state.orderUid, cancelReason.trim() || t('complete.cancelReasonPlaceholder'))
       setCancelModal(false)
       setCancelled(true)
       setTimeout(() => {
@@ -73,7 +67,7 @@ export default function Complete() {
         navigate('/')
       }, 3000)
     } catch (err) {
-      setError(err.response?.data?.message || err.message || '주문 취소에 실패했습니다')
+      setError(err.response?.data?.message || err.message || t('errors.cancelFailed'))
       setCancelModal(false)
     }
     setCancelling(false)
@@ -85,8 +79,8 @@ export default function Complete() {
   }
 
   const statusCode = order?.status ?? order?.orderStatus ?? 20
-  const statusText = ORDER_STATUS[statusCode] || '확인 중'
-  const deliveryDate = getDeliveryDate()
+  const statusText = t(`orderStatus.${statusCode}`, t('checking'))
+  const deliveryDate = getDeliveryDate(t)
   const canCancel = statusCode === 20 || statusCode === 25
 
   if (loading) {
@@ -106,8 +100,8 @@ export default function Complete() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">주문이 취소되었습니다</h1>
-          <p className="text-sm text-[#6B6B6B]">충전금이 환불되었습니다. 잠시 후 홈으로 이동합니다.</p>
+          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">{t('complete.cancelledTitle')}</h1>
+          <p className="text-sm text-[#6B6B6B]">{t('complete.cancelledMessage')}</p>
         </div>
       </div>
     )
@@ -123,8 +117,8 @@ export default function Complete() {
           </svg>
         </div>
 
-        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">주문이 완료되었습니다</h1>
-        <p className="text-sm text-[#6B6B6B] mb-8">소중한 성장 앨범이 곧 완성됩니다</p>
+        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">{t('complete.title')}</h1>
+        <p className="text-sm text-[#6B6B6B] mb-8">{t('complete.subtitle')}</p>
 
         {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
@@ -132,18 +126,18 @@ export default function Complete() {
         <div className="bg-white rounded-xl border border-[#E5E5E3] p-5 mb-6 text-left">
           <div className="space-y-4">
             <div>
-              <p className="text-[10px] text-[#999] uppercase tracking-wider mb-1">주문번호</p>
+              <p className="text-[10px] text-[#999] uppercase tracking-wider mb-1">{t('complete.orderNumber')}</p>
               <p className="text-sm text-[#1A1A1A] font-mono font-semibold">{state.orderUid || '-'}</p>
             </div>
             <div className="border-t border-[#F0F0EE]" />
             <div>
-              <p className="text-[10px] text-[#999] uppercase tracking-wider mb-1">예상 배송일</p>
+              <p className="text-[10px] text-[#999] uppercase tracking-wider mb-1">{t('complete.estimatedDelivery')}</p>
               <p className="text-sm text-[#1A1A1A] font-semibold">{deliveryDate}</p>
             </div>
             <div className="border-t border-[#F0F0EE]" />
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] text-[#999] uppercase tracking-wider mb-1">주문 상태</p>
+                <p className="text-[10px] text-[#999] uppercase tracking-wider mb-1">{t('complete.orderStatusLabel')}</p>
                 <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
                   {statusText}
                 </span>
@@ -162,7 +156,7 @@ export default function Complete() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M2.985 19.644l3.181-3.183" />
                   </svg>
                 )}
-                <span>새로고침</span>
+                <span>{t('complete.refresh')}</span>
               </button>
             </div>
           </div>
@@ -174,7 +168,7 @@ export default function Complete() {
             onClick={handleGoHome}
             className="w-full max-w-xs mx-auto bg-primary hover:bg-primary-dark text-white text-base font-medium py-4 px-8 rounded-xl transition-colors duration-200 cursor-pointer"
           >
-            홈으로 가기
+            {t('complete.goHome')}
           </button>
 
           {canCancel && (
@@ -182,7 +176,7 @@ export default function Complete() {
               onClick={() => setCancelModal(true)}
               className="w-full max-w-xs mx-auto border border-red-300 text-red-500 hover:bg-red-50 text-sm font-medium py-3 px-8 rounded-xl transition-colors duration-200 cursor-pointer"
             >
-              주문 취소
+              {t('complete.cancelOrder')}
             </button>
           )}
         </div>
@@ -192,15 +186,15 @@ export default function Complete() {
       {cancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">주문을 취소하시겠습니까?</h3>
-            <p className="text-sm text-[#6B6B6B] mb-4">취소 즉시 충전금이 환불됩니다.</p>
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-2">{t('complete.cancelConfirm')}</h3>
+            <p className="text-sm text-[#6B6B6B] mb-4">{t('complete.cancelMessage')}</p>
             <div className="mb-6">
-              <label className="block text-xs font-medium text-[#6B6B6B] mb-1">취소 사유 (선택)</label>
+              <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('complete.cancelReason')}</label>
               <input
                 type="text"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="고객 요청으로 인한 취소"
+                placeholder={t('complete.cancelReasonPlaceholder')}
                 className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
               />
             </div>
@@ -210,7 +204,7 @@ export default function Complete() {
                 disabled={cancelling}
                 className="flex-1 border border-[#E5E5E3] text-[#6B6B6B] text-sm font-medium py-3 rounded-xl hover:bg-[#F7F7F5] transition-colors duration-200 cursor-pointer"
               >
-                돌아가기
+                {t('buttons.goBack')}
               </button>
               <button
                 onClick={handleCancel}
@@ -219,7 +213,7 @@ export default function Complete() {
                   cancelling ? 'bg-[#D1D1CF] cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 cursor-pointer'
                 }`}
               >
-                {cancelling ? '취소 중...' : '주문 취소'}
+                {cancelling ? t('complete.cancelling') : t('complete.cancelOrder')}
               </button>
             </div>
           </div>

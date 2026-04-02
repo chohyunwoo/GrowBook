@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { getSample } from '../data/sampleStories'
 
@@ -8,6 +9,7 @@ const CURRENT_YEAR = String(new Date().getFullYear())
 const INPUT_CLASS = 'w-full px-4 py-3 rounded-xl border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200'
 
 export default function InputForm() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
 
@@ -96,10 +98,10 @@ export default function InputForm() {
   }
 
   const typeLabels = {
-    child: { title: '아이 성장 앨범', nameLabel: '이름', namePlaceholder: '아이 이름을 입력하세요', subtitle: '아이의 정보를 입력해주세요' },
-    pet: { title: '반려동물 앨범', nameLabel: '반려동물 이름', namePlaceholder: '반려동물 이름을 입력하세요', subtitle: '반려동물의 정보를 입력해주세요' },
-    travel: { title: '여행 앨범', nameLabel: '여행 제목', namePlaceholder: '예: 2025 제주도 여행', subtitle: '여행 정보를 입력해주세요' },
-    memory: { title: '추억 앨범', nameLabel: '주인공 이름 또는 주제', namePlaceholder: '예: 아버지, 우리 가족', subtitle: '추억의 정보를 입력해주세요' },
+    child: { title: t('inputForm.childTitle'), nameLabel: t('inputForm.childNameLabel'), namePlaceholder: t('inputForm.childNamePlaceholder'), subtitle: t('inputForm.childSubtitle') },
+    pet: { title: t('inputForm.petTitle'), nameLabel: t('inputForm.petNameLabel'), namePlaceholder: t('inputForm.petNamePlaceholder'), subtitle: t('inputForm.petSubtitle') },
+    travel: { title: t('inputForm.travelTitle'), nameLabel: t('inputForm.travelNameLabel'), namePlaceholder: t('inputForm.travelNamePlaceholder'), subtitle: t('inputForm.travelSubtitle') },
+    memory: { title: t('inputForm.memoryTitle'), nameLabel: t('inputForm.memoryNameLabel'), namePlaceholder: t('inputForm.memoryNamePlaceholder'), subtitle: t('inputForm.memorySubtitle') },
   }
 
   const labels = typeLabels[albumType] || typeLabels.child
@@ -121,13 +123,13 @@ export default function InputForm() {
             onClick={fillSample}
             className="text-sm text-primary hover:text-primary-dark font-medium transition-colors duration-200 cursor-pointer"
           >
-            샘플로 체험하기
+            {t('inputForm.sampleButton')}
           </button>
           <button
             onClick={resetForm}
             className="text-sm text-primary border border-primary hover:bg-primary/5 font-medium px-3 py-1 rounded-lg transition-colors duration-200 cursor-pointer"
           >
-            초기화
+            {t('inputForm.resetButton')}
           </button>
         </div>
       </header>
@@ -155,24 +157,24 @@ export default function InputForm() {
             {(albumType === 'child' || albumType === 'pet') && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">태어난 연도</label>
+                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.birthYear')}</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={state.birthYear}
                     onChange={(e) => dispatch({ type: 'SET_BIRTH_YEAR', payload: e.target.value })}
-                    placeholder="예: 2022"
+                    placeholder={t('inputForm.birthYearPlaceholder')}
                     className={INPUT_CLASS}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">앨범 연도</label>
+                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.albumYear')}</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={state.albumYear}
                     onChange={(e) => dispatch({ type: 'SET_ALBUM_YEAR', payload: e.target.value })}
-                    placeholder={`예: ${CURRENT_YEAR}`}
+                    placeholder={t('inputForm.albumYearPlaceholder', { year: CURRENT_YEAR })}
                     className={INPUT_CLASS}
                   />
                 </div>
@@ -182,12 +184,12 @@ export default function InputForm() {
             {/* travel: period */}
             {albumType === 'travel' && (
               <div>
-                <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">여행 기간</label>
+                <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.travelPeriod')}</label>
                 <input
                   type="text"
                   value={state.birthYear}
                   onChange={(e) => dispatch({ type: 'SET_BIRTH_YEAR', payload: e.target.value })}
-                  placeholder="예: 2025.03.15 ~ 2025.03.18"
+                  placeholder={t('inputForm.travelPeriodPlaceholder')}
                   className={INPUT_CLASS}
                 />
               </div>
@@ -196,12 +198,12 @@ export default function InputForm() {
             {/* memory: period */}
             {albumType === 'memory' && (
               <div>
-                <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">추억의 기간</label>
+                <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.memoryPeriod')}</label>
                 <input
                   type="text"
                   value={state.birthYear}
                   onChange={(e) => dispatch({ type: 'SET_BIRTH_YEAR', payload: e.target.value })}
-                  placeholder="예: 1990~2025년"
+                  placeholder={t('inputForm.memoryPeriodPlaceholder')}
                   className={INPUT_CLASS}
                 />
               </div>
@@ -211,15 +213,15 @@ export default function InputForm() {
           {/* child / pet: Monthly highlights */}
           {(albumType === 'child' || albumType === 'pet') && (
             <>
-              <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">월별 하이라이트</h2>
-              <p className="text-sm text-[#6B6B6B] mb-3">각 달의 특별한 순간을 기록해주세요</p>
+              <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">{t('inputForm.monthlyTitle')}</h2>
+              <p className="text-sm text-[#6B6B6B] mb-3">{t('inputForm.monthlySubtitle')}</p>
               <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-6 leading-relaxed">
-                월별 하이라이트는 선택사항이에요.<br />입력하지 않은 달은 자동으로 채워져요.
+                {t('inputForm.monthlyHint')}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {state.highlights.map((h) => (
                   <div key={h.month}>
-                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{h.month}월</label>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('inputForm.monthLabel', { month: h.month })}</label>
                     <textarea
                       value={h.content}
                       onChange={(e) =>
@@ -228,7 +230,7 @@ export default function InputForm() {
                           payload: { month: h.month, content: e.target.value },
                         })
                       }
-                      placeholder="이달의 특별한 순간을 적어주세요"
+                      placeholder={t('inputForm.monthPlaceholder')}
                       rows={2}
                       className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] resize-none focus:outline-none focus:border-primary transition-colors duration-200"
                     />
@@ -241,22 +243,22 @@ export default function InputForm() {
           {/* travel: Dynamic moments */}
           {albumType === 'travel' && (
             <>
-              <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">특별한 순간들</h2>
-              <p className="text-sm text-[#6B6B6B] mb-3">여행의 특별한 순간을 기록해주세요 (최대 10개)</p>
+              <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">{t('inputForm.travelMomentsTitle')}</h2>
+              <p className="text-sm text-[#6B6B6B] mb-3">{t('inputForm.travelMomentsSubtitle')}</p>
               <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-6 leading-relaxed">
-                여행의 특별한 순간을 입력해주세요.
+                {t('inputForm.travelMomentsHint')}
               </p>
               <div className="space-y-3">
                 {moments.map((m, i) => (
                   <div key={i} className="bg-white rounded-xl border border-[#E5E5E3] p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-[#1A1A1A]">순간 {i + 1}</span>
+                      <span className="text-xs font-semibold text-[#1A1A1A]">{t('inputForm.momentLabel', { index: i + 1 })}</span>
                       {moments.length > 1 && (
                         <button
                           onClick={() => removeMoment(i)}
                           className="text-xs text-red-500 hover:text-red-600 font-medium cursor-pointer transition-colors duration-200"
                         >
-                          삭제
+                          {t('buttons.delete')}
                         </button>
                       )}
                     </div>
@@ -264,7 +266,7 @@ export default function InputForm() {
                       type="text"
                       value={m.content}
                       onChange={(e) => updateMoment(i, 'content', e.target.value)}
-                      placeholder="특별한 순간을 적어주세요"
+                      placeholder={t('inputForm.travelMomentPlaceholder')}
                       className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                     />
                   </div>
@@ -274,7 +276,7 @@ export default function InputForm() {
                     onClick={addMoment}
                     className="w-full border-2 border-dashed border-[#E5E5E3] hover:border-primary text-[#6B6B6B] hover:text-primary text-sm font-medium py-3 rounded-xl transition-colors duration-200 cursor-pointer"
                   >
-                    + 순간 추가
+                    {t('inputForm.addMoment')}
                   </button>
                 )}
               </div>
@@ -284,29 +286,29 @@ export default function InputForm() {
           {/* memory: Dynamic moments */}
           {albumType === 'memory' && (
             <>
-              <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">소중한 순간들</h2>
-              <p className="text-sm text-[#6B6B6B] mb-3">기억하고 싶은 순간을 기록해주세요 (최대 10개)</p>
+              <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">{t('inputForm.memoryMomentsTitle')}</h2>
+              <p className="text-sm text-[#6B6B6B] mb-3">{t('inputForm.memoryMomentsSubtitle')}</p>
               <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-6 leading-relaxed">
-                소중한 순간들을 입력해주세요.
+                {t('inputForm.memoryMomentsHint')}
               </p>
               <div className="space-y-3">
                 {moments.map((m, i) => (
                   <div key={i} className="bg-white rounded-xl border border-[#E5E5E3] p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-[#1A1A1A]">순간 {i + 1}</span>
+                      <span className="text-xs font-semibold text-[#1A1A1A]">{t('inputForm.momentLabel', { index: i + 1 })}</span>
                       {moments.length > 1 && (
                         <button
                           onClick={() => removeMoment(i)}
                           className="text-xs text-red-500 hover:text-red-600 font-medium cursor-pointer transition-colors duration-200"
                         >
-                          삭제
+                          {t('buttons.delete')}
                         </button>
                       )}
                     </div>
                     <textarea
                       value={m.content}
                       onChange={(e) => updateMoment(i, 'content', e.target.value)}
-                      placeholder="소중한 순간을 적어주세요"
+                      placeholder={t('inputForm.memoryMomentPlaceholder')}
                       rows={2}
                       className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] resize-none focus:outline-none focus:border-primary transition-colors duration-200"
                     />
@@ -317,14 +319,14 @@ export default function InputForm() {
                     onClick={addMoment}
                     className="w-full border-2 border-dashed border-[#E5E5E3] hover:border-primary text-[#6B6B6B] hover:text-primary text-sm font-medium py-3 rounded-xl transition-colors duration-200 cursor-pointer"
                   >
-                    + 순간 추가
+                    {t('inputForm.addMoment')}
                   </button>
                 )}
               </div>
             </>
           )}
 
-          {/* 다음 버튼 */}
+          {/* Next button */}
           <button
             onClick={handleNext}
             disabled={!isValid}
@@ -334,7 +336,7 @@ export default function InputForm() {
                 : 'bg-[#D1D1CF] cursor-not-allowed'
             }`}
           >
-            다음
+            {t('buttons.next')}
           </button>
         </div>
       </main>

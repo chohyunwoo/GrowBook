@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { estimateOrder, createOrder } from '../api/orderApi'
 import { getCredits } from '../api/creditsApi'
@@ -32,6 +33,7 @@ const EMPTY_FORM = {
 }
 
 export default function Order() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
 
@@ -75,7 +77,7 @@ export default function Order() {
         setEstimate(estRes.data?.data || estRes.data)
         setCredits(credRes.data?.data || credRes.data)
       } catch {
-        setError('금액 정보를 불러오지 못했습니다')
+        setError(t('errors.loadFailed'))
       } finally {
         setLoadingData(false)
       }
@@ -115,7 +117,7 @@ export default function Order() {
     const shipping = getShippingData()
     console.log('주문 shipping 데이터:', shipping)
     if (!shipping) {
-      setError('배송지를 입력해주세요')
+      setError(t('errors.enterShipping'))
       return
     }
     setOrdering(true)
@@ -150,7 +152,7 @@ export default function Order() {
           balance: data.balance,
         })
       } else {
-        setError(err.response?.data?.message || err.message || '주문에 실패했습니다')
+        setError(err.response?.data?.message || err.message || t('errors.orderFailed'))
       }
     }
     setOrdering(false)
@@ -177,7 +179,7 @@ export default function Order() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
           </svg>
         </button>
-        <h2 className="text-base font-semibold text-[#1A1A1A]">주문하기</h2>
+        <h2 className="text-base font-semibold text-[#1A1A1A]">{t('order.header')}</h2>
         <div className="w-5" />
       </header>
 
@@ -186,7 +188,7 @@ export default function Order() {
 
           {/* Price Card */}
           <div className="bg-white rounded-xl border border-[#E5E5E3] p-5 mb-4">
-            <h3 className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider mb-4">예상 금액</h3>
+            <h3 className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider mb-4">{t('order.estimatedPrice')}</h3>
             {loadingData ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4].map((i) => (
@@ -196,20 +198,20 @@ export default function Order() {
             ) : (
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between text-[#6B6B6B]">
-                  <span>제작비</span>
-                  <span>{productAmount.toLocaleString()}원</span>
+                  <span>{t('order.productAmount')}</span>
+                  <span>{t('currency', { amount: productAmount.toLocaleString() })}</span>
                 </div>
                 <div className="flex justify-between text-[#6B6B6B]">
-                  <span>배송비</span>
-                  <span>{shippingFee.toLocaleString()}원</span>
+                  <span>{t('order.shippingFee')}</span>
+                  <span>{t('currency', { amount: shippingFee.toLocaleString() })}</span>
                 </div>
                 <div className="border-t border-[#E5E5E3] pt-3 mt-3 flex justify-between text-[#1A1A1A]">
-                  <span className="font-medium">합계</span>
-                  <span className="font-semibold">{totalAmount.toLocaleString()}원</span>
+                  <span className="font-medium">{t('order.total')}</span>
+                  <span className="font-semibold">{t('currency', { amount: totalAmount.toLocaleString() })}</span>
                 </div>
                 <div className="flex justify-between font-bold text-[#1A1A1A]">
-                  <span>실제 차감액 <span className="font-normal text-xs text-[#ACACAC]">(부가세 포함)</span></span>
-                  <span className="text-primary text-lg">{paidCreditAmount.toLocaleString()}원</span>
+                  <span>{t('order.paidAmount')} <span className="font-normal text-xs text-[#ACACAC]">{t('order.vatIncluded')}</span></span>
+                  <span className="text-primary text-lg">{t('currency', { amount: paidCreditAmount.toLocaleString() })}</span>
                 </div>
               </div>
             )}
@@ -220,13 +222,13 @@ export default function Order() {
             <div className={`bg-white rounded-xl border p-4 mb-6 flex justify-between items-center ${
               insufficientBalance ? 'border-red-300' : 'border-[#E5E5E3]'
             }`}>
-              <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">보유 잔액</span>
+              <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('order.balance')}</span>
               <div className="text-right">
                 <span className={`text-sm font-bold ${insufficientBalance ? 'text-red-500' : 'text-primary'}`}>
-                  {balance.toLocaleString()}원
+                  {t('currency', { amount: balance.toLocaleString() })}
                 </span>
                 {insufficientBalance && (
-                  <p className="text-[10px] text-red-500 mt-0.5">잔액이 부족합니다</p>
+                  <p className="text-[10px] text-red-500 mt-0.5">{t('order.insufficientBalance')}</p>
                 )}
               </div>
             </div>
@@ -243,7 +245,7 @@ export default function Order() {
                     : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
                 }`}
               >
-                저장된 배송지
+                {t('shipping.savedTab')}
               </button>
               <button
                 onClick={() => setActiveTab('new')}
@@ -253,7 +255,7 @@ export default function Order() {
                     : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
                 }`}
               >
-                새 배송지
+                {t('shipping.newTab')}
               </button>
             </div>
 
@@ -261,12 +263,12 @@ export default function Order() {
               {activeTab === 'saved' ? (
                 savedAddresses.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-sm text-[#6B6B6B] mb-2">저장된 배송지가 없습니다</p>
+                    <p className="text-sm text-[#6B6B6B] mb-2">{t('shipping.noSaved')}</p>
                     <Link
                       to="/shipping"
                       className="text-xs text-primary hover:text-primary-dark font-medium transition-colors duration-200"
                     >
-                      배송지 관리
+                      {t('shipping.manage')}
                     </Link>
                   </div>
                 ) : (
@@ -292,7 +294,7 @@ export default function Order() {
                             <span className="text-sm font-semibold text-[#1A1A1A]">{addr.recipient_name}</span>
                             {addr.is_default && (
                               <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                                기본
+                                {t('shipping.default')}
                               </span>
                             )}
                           </div>
@@ -307,7 +309,7 @@ export default function Order() {
                       to="/shipping"
                       className="block text-center text-xs text-primary hover:text-primary-dark font-medium mt-2 transition-colors duration-200"
                     >
-                      배송지 관리
+                      {t('shipping.manage')}
                     </Link>
                   </div>
                 )
@@ -315,17 +317,17 @@ export default function Order() {
                 /* New Address Tab */
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">받는 사람</label>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.recipientName')}</label>
                     <input
                       type="text"
                       value={form.recipient_name}
                       onChange={(e) => handleFormChange('recipient_name', e.target.value)}
-                      placeholder="이름을 입력하세요"
+                      placeholder={t('shipping.namePlaceholder')}
                       className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">전화번호</label>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.phone')}</label>
                     <input
                       type="tel"
                       value={form.recipient_phone}
@@ -335,42 +337,42 @@ export default function Order() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">우편번호</label>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.postalCode')}</label>
                     <input
                       type="text"
                       value={form.postal_code}
                       onChange={(e) => handleFormChange('postal_code', e.target.value)}
-                      placeholder="우편번호"
+                      placeholder={t('shipping.postalPlaceholder')}
                       className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">주소</label>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.address')}</label>
                     <input
                       type="text"
                       value={form.address1}
                       onChange={(e) => handleFormChange('address1', e.target.value)}
-                      placeholder="주소를 입력하세요"
+                      placeholder={t('shipping.addressPlaceholder')}
                       className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">상세주소</label>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.detailAddress')}</label>
                     <input
                       type="text"
                       value={form.address2}
                       onChange={(e) => handleFormChange('address2', e.target.value)}
-                      placeholder="상세주소를 입력하세요"
+                      placeholder={t('shipping.detailPlaceholder')}
                       className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">배송 메모</label>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.deliveryMemo')}</label>
                     <input
                       type="text"
                       value={form.memo}
                       onChange={(e) => handleFormChange('memo', e.target.value)}
-                      placeholder="배송 메모를 입력하세요"
+                      placeholder={t('shipping.memoPlaceholder')}
                       className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                     />
                   </div>
@@ -381,7 +383,7 @@ export default function Order() {
                       onChange={(e) => setSaveNewAddress(e.target.checked)}
                       className="accent-[#2D6A4F]"
                     />
-                    <span className="text-xs text-[#6B6B6B]">이 배송지 저장하기</span>
+                    <span className="text-xs text-[#6B6B6B]">{t('shipping.saveThis')}</span>
                   </label>
                 </div>
               )}
@@ -401,7 +403,7 @@ export default function Order() {
                 : 'bg-primary hover:bg-primary-dark cursor-pointer'
             }`}
           >
-            {ordering ? '주문 처리 중...' : '주문 완료'}
+            {ordering ? t('order.processing') : t('order.complete')}
           </button>
         </div>
       </main>
@@ -410,15 +412,15 @@ export default function Order() {
       {creditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-bold text-[#1A1A1A] mb-4">충전금이 부족합니다</h3>
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-4">{t('order.creditModalTitle')}</h3>
             <div className="space-y-2 mb-6">
               <div className="flex justify-between text-sm">
-                <span className="text-[#6B6B6B]">필요 금액</span>
-                <span className="font-semibold text-[#1A1A1A]">{(creditModal.required ?? 0).toLocaleString()}원</span>
+                <span className="text-[#6B6B6B]">{t('order.requiredAmount')}</span>
+                <span className="font-semibold text-[#1A1A1A]">{t('currency', { amount: (creditModal.required ?? 0).toLocaleString() })}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-[#6B6B6B]">현재 잔액</span>
-                <span className="font-semibold text-red-500">{(creditModal.balance ?? 0).toLocaleString()}원</span>
+                <span className="text-[#6B6B6B]">{t('order.currentBalance')}</span>
+                <span className="font-semibold text-red-500">{t('currency', { amount: (creditModal.balance ?? 0).toLocaleString() })}</span>
               </div>
             </div>
             <a
@@ -427,13 +429,13 @@ export default function Order() {
               rel="noopener noreferrer"
               className="block w-full text-center bg-primary hover:bg-primary-dark text-white text-sm font-medium py-3 rounded-xl transition-colors duration-200 mb-3"
             >
-              파트너 포털에서 충전하기
+              {t('order.chargeAtPortal')}
             </a>
             <button
               onClick={() => setCreditModal(null)}
               className="w-full text-center text-sm text-[#6B6B6B] hover:text-[#1A1A1A] font-medium py-2 cursor-pointer transition-colors duration-200"
             >
-              닫기
+              {t('buttons.close')}
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 const STORAGE_KEY = 'shipping_addresses'
 
@@ -25,6 +26,7 @@ const EMPTY_FORM = {
 }
 
 export default function ShippingManager({ embedded = false }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [addresses, setAddresses] = useState(loadAddresses)
   const [showForm, setShowForm] = useState(false)
@@ -71,8 +73,8 @@ export default function ShippingManager({ embedded = false }) {
           {/* Address List */}
           {addresses.length === 0 && !showForm && (
             <div className="text-center py-16">
-              <p className="text-sm text-[#6B6B6B] mb-2">저장된 배송지가 없습니다</p>
-              <p className="text-xs text-[#ACACAC]">새 배송지를 추가해주세요</p>
+              <p className="text-sm text-[#6B6B6B] mb-2">{t('shipping.noSaved')}</p>
+              <p className="text-xs text-[#ACACAC]">{t('shipping.addPlease')}</p>
             </div>
           )}
 
@@ -87,7 +89,7 @@ export default function ShippingManager({ embedded = false }) {
                     <p className="text-sm font-semibold text-[#1A1A1A]">{addr.recipient_name}</p>
                     {addr.is_default && (
                       <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                        기본 배송지
+                        {t('shipping.defaultAddress')}
                       </span>
                     )}
                   </div>
@@ -104,14 +106,14 @@ export default function ShippingManager({ embedded = false }) {
                       onClick={() => handleSetDefault(addr.id)}
                       className="text-xs text-primary hover:text-primary-dark font-medium cursor-pointer transition-colors duration-200"
                     >
-                      기본으로 설정
+                      {t('shipping.setDefault')}
                     </button>
                   )}
                   <button
                     onClick={() => handleDelete(addr.id)}
                     className="text-xs text-red-500 hover:text-red-600 font-medium cursor-pointer transition-colors duration-200"
                   >
-                    삭제
+                    {t('buttons.delete')}
                   </button>
                 </div>
               </div>
@@ -121,20 +123,20 @@ export default function ShippingManager({ embedded = false }) {
           {/* Add Form */}
           {showForm ? (
             <div className="bg-white rounded-xl border border-[#E5E5E3] p-5">
-              <h3 className="text-sm font-semibold text-[#1A1A1A] mb-4">새 배송지 추가</h3>
+              <h3 className="text-sm font-semibold text-[#1A1A1A] mb-4">{t('shipping.addNewTitle')}</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">받는 사람</label>
+                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.recipientName')}</label>
                   <input
                     type="text"
                     value={form.recipient_name}
                     onChange={(e) => handleChange('recipient_name', e.target.value)}
-                    placeholder="이름을 입력하세요"
+                    placeholder={t('shipping.namePlaceholder')}
                     className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">전화번호</label>
+                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.phone')}</label>
                   <input
                     type="tel"
                     value={form.recipient_phone}
@@ -144,42 +146,42 @@ export default function ShippingManager({ embedded = false }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">우편번호</label>
+                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.postalCode')}</label>
                   <input
                     type="text"
                     value={form.postal_code}
                     onChange={(e) => handleChange('postal_code', e.target.value)}
-                    placeholder="우편번호"
+                    placeholder={t('shipping.postalPlaceholder')}
                     className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">주소</label>
+                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.address')}</label>
                   <input
                     type="text"
                     value={form.address1}
                     onChange={(e) => handleChange('address1', e.target.value)}
-                    placeholder="주소를 입력하세요"
+                    placeholder={t('shipping.addressPlaceholder')}
                     className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">상세주소</label>
+                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.detailAddress')}</label>
                   <input
                     type="text"
                     value={form.address2}
                     onChange={(e) => handleChange('address2', e.target.value)}
-                    placeholder="상세주소를 입력하세요"
+                    placeholder={t('shipping.detailPlaceholder')}
                     className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">배송 메모</label>
+                  <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.deliveryMemo')}</label>
                   <input
                     type="text"
                     value={form.memo}
                     onChange={(e) => handleChange('memo', e.target.value)}
-                    placeholder="배송 메모를 입력하세요"
+                    placeholder={t('shipping.memoPlaceholder')}
                     className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
                   />
                 </div>
@@ -189,7 +191,7 @@ export default function ShippingManager({ embedded = false }) {
                   onClick={() => { setForm(EMPTY_FORM); setShowForm(false) }}
                   className="flex-1 border border-[#E5E5E3] text-[#6B6B6B] text-sm font-medium py-3 rounded-xl hover:bg-[#F7F7F5] transition-colors duration-200 cursor-pointer"
                 >
-                  취소
+                  {t('buttons.cancel')}
                 </button>
                 <button
                   onClick={handleSave}
@@ -200,7 +202,7 @@ export default function ShippingManager({ embedded = false }) {
                       : 'bg-[#D1D1CF] cursor-not-allowed'
                   }`}
                 >
-                  저장
+                  {t('buttons.save')}
                 </button>
               </div>
             </div>
@@ -209,7 +211,7 @@ export default function ShippingManager({ embedded = false }) {
               onClick={() => setShowForm(true)}
               className="w-full border-2 border-dashed border-[#E5E5E3] hover:border-primary text-[#6B6B6B] hover:text-primary text-sm font-medium py-4 rounded-xl transition-colors duration-200 cursor-pointer"
             >
-              + 새 배송지 추가
+              {t('shipping.addNew')}
             </button>
           )}
     </>
@@ -228,7 +230,7 @@ export default function ShippingManager({ embedded = false }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
           </svg>
         </button>
-        <h2 className="text-base font-semibold text-[#1A1A1A]">배송지 관리</h2>
+        <h2 className="text-base font-semibold text-[#1A1A1A]">{t('shipping.title')}</h2>
         <div className="w-5" />
       </header>
       <main className="flex-1 px-4 pb-16">
