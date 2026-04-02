@@ -1,7 +1,47 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { getOrder } from '../api/orderApi'
+
+const ORDER_STATUS = {
+  20: '결제 완료',
+  25: '제작 준비 완료',
+  30: '제작 확정',
+  40: '제작 진행 중',
+  50: '제작 완료',
+  60: '배송 중',
+  70: '배송 완료',
+  80: '주문 취소',
+  81: '취소 및 환불 완료',
+}
+
+function getDeliveryDate() {
+  const date = new Date()
+  date.setDate(date.getDate() + 7)
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
+}
 
 export default function Home() {
   const navigate = useNavigate()
+  const [showOrderModal, setShowOrderModal] = useState(false)
+  const [orderUidInput, setOrderUidInput] = useState('')
+  const [orderResult, setOrderResult] = useState(null)
+  const [orderLoading, setOrderLoading] = useState(false)
+  const [orderError, setOrderError] = useState(null)
+
+  const handleOrderLookup = async () => {
+    if (!orderUidInput.trim()) return
+    setOrderLoading(true)
+    setOrderError(null)
+    setOrderResult(null)
+    try {
+      const res = await getOrder(orderUidInput.trim())
+      const data = res.data?.data || res.data
+      setOrderResult(data)
+    } catch {
+      setOrderError('주문 정보를 찾을 수 없습니다')
+    }
+    setOrderLoading(false)
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -10,12 +50,20 @@ export default function Home() {
         <Link to="/" className="text-2xl font-bold text-primary">
           GrowBook
         </Link>
-        <Link
-          to="/shipping"
-          className="text-sm text-primary hover:text-primary-dark transition-colors duration-200"
-        >
-          배송지 관리
-        </Link>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowOrderModal(true)}
+            className="text-sm text-primary hover:text-primary-dark transition-colors duration-200 cursor-pointer"
+          >
+            주문 조회
+          </button>
+          <Link
+            to="/shipping"
+            className="text-sm text-primary hover:text-primary-dark transition-colors duration-200"
+          >
+            배송지 관리
+          </Link>
+        </div>
       </header>
 
       {/* Hero */}
@@ -80,6 +128,70 @@ export default function Home() {
           ))}
         </div>
       </main>
+
+      {/* Order Lookup Modal */}
+      {showOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-[#1A1A1A]">주문 조회</h3>
+              <button
+                onClick={() => { setShowOrderModal(false); setOrderResult(null); setOrderError(null); setOrderUidInput('') }}
+                className="w-8 h-8 rounded-full hover:bg-[#F0F0EE] flex items-center justify-center text-[#6B6B6B] cursor-pointer transition-colors duration-200"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={orderUidInput}
+                onChange={(e) => setOrderUidInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleOrderLookup()}
+                placeholder="주문번호를 입력하세요"
+                className="flex-1 px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+              />
+              <button
+                onClick={handleOrderLookup}
+                disabled={orderLoading || !orderUidInput.trim()}
+                className={`text-sm font-medium px-4 py-2.5 rounded-lg transition-colors duration-200 ${
+                  orderLoading || !orderUidInput.trim()
+                    ? 'bg-[#D1D1CF] text-white cursor-not-allowed'
+                    : 'bg-primary hover:bg-primary-dark text-white cursor-pointer'
+                }`}
+              >
+                {orderLoading ? '...' : '조회'}
+              </button>
+            </div>
+
+            {orderError && <p className="text-sm text-red-500 mb-3">{orderError}</p>}
+
+            {orderResult && (
+              <div className="bg-[#F7F7F5] rounded-lg p-4 space-y-3">
+                <div>
+                  <p className="text-[10px] text-[#999] uppercase tracking-wider mb-0.5">주문번호</p>
+                  <p className="text-sm text-[#1A1A1A] font-mono font-semibold">
+                    {orderResult.orderUid || orderResult.uid || orderUidInput}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#999] uppercase tracking-wider mb-0.5">주문 상태</p>
+                  <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                    {ORDER_STATUS[orderResult.status ?? orderResult.orderStatus] || '확인 중'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#999] uppercase tracking-wider mb-0.5">예상 배송일</p>
+                  <p className="text-sm text-[#1A1A1A] font-semibold">{getDeliveryDate()}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

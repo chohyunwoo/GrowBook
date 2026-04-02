@@ -330,7 +330,7 @@ async function cancelOrder(orderUid) {
   }
 
   try {
-    const result = await client.orders.cancel(orderUid)
+    const result = await client.orders.cancel(orderUid, '고객 요청으로 인한 취소')
     if (process.env.NODE_ENV !== 'production') {
       console.log('[cancelOrder] 취소 완료:', JSON.stringify(result, null, 2))
     }

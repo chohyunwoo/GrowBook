@@ -11,3 +11,7 @@ export function createOrder(bookUid, shipping) {
 export function getOrder(orderUid) {
   return client.get(`/api/orders/${orderUid}`)
 }
+
+export function cancelOrder(orderUid, cancelReason) {
+  return client.post(`/api/orders/${orderUid}/cancel`, { cancelReason })
+}
