@@ -43,7 +43,7 @@ function handleSweetbookError(err) {
  * @param {Array<{month: number, content: string}>} params.highlights
  * @returns {Promise<{bookUid: string}>}
  */
-async function createBook({ title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, albumYear, highlights }) {
+async function createBook({ title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, albumYear, highlights, type = 'child' }) {
   const client = getClient()
   const year = albumYear || new Date().getFullYear()
 
@@ -133,33 +133,87 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
     handleSweetbookError(err)
   }
 
-  // Step 4: 1~12월 월별 하이라이트 삽입 (multipart/form-data, parameters는 SDK 내부에서 JSON 직렬화)
-  for (let month = 1; month <= 12; month++) {
-    const highlight = highlights.find((h) => h.month === month)
-    const content = highlight?.content?.trim() || '이달은 조용히 흘러갔어요.'
-    console.log(`[Step 4] 시작 - contents.insert (${month}월)`, { content })
-    try {
-      await client.contents.insert(
-        bookUid,
-        contentTemplateUid,
-        { date: `${month}.01`, title: `${month}월`, diaryText: content || '이달은 조용히 흘러갔어요.' },
-        { breakBefore: 'page' }
-      )
-      console.log(`[Step 4] 완료 - ${month}월`)
-    } catch (err) {
-      console.error(`[Step 4] 실패 - contents.insert (${month}월) 에러`)
-      console.error('  message:', err.message)
-      console.error('  statusCode:', err.statusCode)
-      console.error('  errorCode:', err.errorCode)
-      console.error('  details:', err.details)
-      handleSweetbookError(err)
+  // Step 4: 타입별 내지 삽입
+  let contentPageCount = 0
+
+  if (type === 'child' || type === 'pet') {
+    // child/pet: 1~12월 반복
+    for (let month = 1; month <= 12; month++) {
+      const highlight = highlights.find((h) => h.month === month)
+      const content = highlight?.content?.trim() || '이달은 조용히 흘러갔어요.'
+      console.log(`[Step 4] 시작 - contents.insert (${month}월)`, { content })
+      try {
+        await client.contents.insert(
+          bookUid,
+          contentTemplateUid,
+          { date: `${month}.01`, title: `${month}월`, diaryText: content },
+          { breakBefore: 'page' }
+        )
+        console.log(`[Step 4] 완료 - ${month}월`)
+        contentPageCount++
+      } catch (err) {
+        console.error(`[Step 4] 실패 - contents.insert (${month}월) 에러`)
+        console.error('  message:', err.message)
+        console.error('  statusCode:', err.statusCode)
+        console.error('  errorCode:', err.errorCode)
+        console.error('  details:', err.details)
+        handleSweetbookError(err)
+      }
+    }
+  } else if (type === 'travel') {
+    // travel: highlights 순서대로
+    for (let i = 0; i < highlights.length; i++) {
+      const h = highlights[i]
+      console.log(`[Step 4] 시작 - contents.insert (travel ${i + 1}/${highlights.length})`, { date: h.date, content: h.content })
+      try {
+        await client.contents.insert(
+          bookUid,
+          contentTemplateUid,
+          { date: h.date, title: h.date, diaryText: h.content },
+          { breakBefore: 'page' }
+        )
+        console.log(`[Step 4] 완료 - travel ${i + 1}`)
+        contentPageCount++
+      } catch (err) {
+        console.error(`[Step 4] 실패 - contents.insert (travel ${i + 1}) 에러`)
+        console.error('  message:', err.message)
+        console.error('  statusCode:', err.statusCode)
+        console.error('  errorCode:', err.errorCode)
+        console.error('  details:', err.details)
+        handleSweetbookError(err)
+      }
+    }
+  } else if (type === 'memory') {
+    // memory: highlights 순서대로
+    for (let i = 0; i < highlights.length; i++) {
+      const h = highlights[i]
+      console.log(`[Step 4] 시작 - contents.insert (memory ${i + 1}/${highlights.length})`, { title: h.title, content: h.content })
+      try {
+        await client.contents.insert(
+          bookUid,
+          contentTemplateUid,
+          { date: h.title, title: h.title, diaryText: h.content },
+          { breakBefore: 'page' }
+        )
+        console.log(`[Step 4] 완료 - memory ${i + 1}`)
+        contentPageCount++
+      } catch (err) {
+        console.error(`[Step 4] 실패 - contents.insert (memory ${i + 1}) 에러`)
+        console.error('  message:', err.message)
+        console.error('  statusCode:', err.statusCode)
+        console.error('  errorCode:', err.errorCode)
+        console.error('  details:', err.details)
+        handleSweetbookError(err)
+      }
     }
   }
 
-  // Step 5: 빈 페이지 추가 (최소 20페이지 맞추기 위해 6페이지 추가)
+  // Step 5: 빈 페이지 추가 (최소 24페이지: 표지 1 + 전체스토리 1 + 내지 + 빈페이지)
   const BLANK_TEMPLATE_UID = '2mi1ao0Z4Vxl'
-  const BLANK_PAGE_COUNT = 11
-  console.log(`[Step 5] 시작 - 빈 페이지 ${BLANK_PAGE_COUNT}개 추가 (templateUid: ${BLANK_TEMPLATE_UID})`)
+  const MIN_PAGES = 24
+  const usedPages = 1 + 1 + contentPageCount // 표지 + 전체스토리 + 내지
+  const BLANK_PAGE_COUNT = Math.max(0, MIN_PAGES - usedPages)
+  console.log(`[Step 5] 시작 - 빈 페이지 ${BLANK_PAGE_COUNT}개 추가 (사용: ${usedPages}, 최소: ${MIN_PAGES})`)
   for (let i = 1; i <= BLANK_PAGE_COUNT; i++) {
     try {
       await client.contents.insert(bookUid, BLANK_TEMPLATE_UID, {}, { breakBefore: 'page' })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { getSample } from '../data/sampleStories'
@@ -23,9 +23,11 @@ export default function InputForm() {
   const albumType = state.type || 'child'
 
   // Initialize albumYear default
-  if (!state.albumYear) {
-    dispatch({ type: 'SET_ALBUM_YEAR', payload: CURRENT_YEAR })
-  }
+  useEffect(() => {
+    if (!state.albumYear) {
+      dispatch({ type: 'SET_ALBUM_YEAR', payload: CURRENT_YEAR })
+    }
+  }, [])
 
   const fillSample = () => {
     const sample = getSample(albumType)
@@ -210,7 +212,10 @@ export default function InputForm() {
           {(albumType === 'child' || albumType === 'pet') && (
             <>
               <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">월별 하이라이트</h2>
-              <p className="text-sm text-[#6B6B6B] mb-6">각 달의 특별한 순간을 기록해주세요</p>
+              <p className="text-sm text-[#6B6B6B] mb-3">각 달의 특별한 순간을 기록해주세요</p>
+              <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-6 leading-relaxed">
+                월별 하이라이트는 선택사항이에요.<br />입력하지 않은 달은 자동으로 채워져요.
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 {state.highlights.map((h) => (
                   <div key={h.month}>
@@ -237,7 +242,10 @@ export default function InputForm() {
           {albumType === 'travel' && (
             <>
               <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">특별한 순간들</h2>
-              <p className="text-sm text-[#6B6B6B] mb-6">여행의 특별한 순간을 기록해주세요 (최대 10개)</p>
+              <p className="text-sm text-[#6B6B6B] mb-3">여행의 특별한 순간을 기록해주세요 (최대 10개)</p>
+              <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-6 leading-relaxed">
+                여행의 특별한 순간을 입력해주세요.
+              </p>
               <div className="space-y-3">
                 {moments.map((m, i) => (
                   <div key={i} className="bg-white rounded-xl border border-[#E5E5E3] p-4">
@@ -277,7 +285,10 @@ export default function InputForm() {
           {albumType === 'memory' && (
             <>
               <h2 className="text-lg font-bold text-[#1A1A1A] mb-1">소중한 순간들</h2>
-              <p className="text-sm text-[#6B6B6B] mb-6">기억하고 싶은 순간을 기록해주세요 (최대 10개)</p>
+              <p className="text-sm text-[#6B6B6B] mb-3">기억하고 싶은 순간을 기록해주세요 (최대 10개)</p>
+              <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-6 leading-relaxed">
+                소중한 순간들을 입력해주세요.
+              </p>
               <div className="space-y-3">
                 {moments.map((m, i) => (
                   <div key={i} className="bg-white rounded-xl border border-[#E5E5E3] p-4">

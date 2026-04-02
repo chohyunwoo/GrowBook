@@ -24,6 +24,9 @@ export default function Preview() {
   const [subtitleDraft, setSubtitleDraft] = useState('')
   const [regeneratingStory, setRegeneratingStory] = useState(false)
 
+  // Page slider
+  const [currentPage, setCurrentPage] = useState(0)
+
   // Customize panel
   const [showOptions, setShowOptions] = useState(false)
 
@@ -61,12 +64,114 @@ export default function Preview() {
     reader.readAsDataURL(file)
   }
 
+  const handleRemoveCoverImage = () => {
+    dispatch({ type: 'SET_COVER_IMAGE_FILE', payload: null })
+    dispatch({ type: 'SET_COVER_IMAGE_PREVIEW', payload: null })
+  }
+
+  // Highlight photo handlers
+  const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic']
+  const MAX_FILE_SIZE = 20 * 1024 * 1024
+  const highlightInputRefs = useRef({})
+
+  const handleHighlightPhoto = (month, e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!ACCEPTED_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      dispatch({ type: 'SET_HIGHLIGHT', payload: { month, imageFile: file, imagePreview: ev.target.result } })
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const removeHighlightPhoto = (month) => {
+    dispatch({ type: 'SET_HIGHLIGHT', payload: { month, imageFile: null, imagePreview: null } })
+  }
+
+  const hasStory = !!state.generatedStory
+
+  // Build pages for slider
+  const buildPages = () => {
+    const pages = []
+    // Page 0: Cover
+    pages.push({ type: 'cover' })
+    // Page 1: Story (if generated)
+    if (hasStory) {
+      pages.push({ type: 'story' })
+    }
+    // Inner pages
+    const albumType = state.type || 'child'
+    if (albumType === 'child' || albumType === 'pet') {
+      state.highlights.forEach((h) => {
+        pages.push({ type: 'month', month: h.month, content: h.content, imagePreview: h.imagePreview })
+      })
+    } else if (albumType === 'travel') {
+      state.highlights.filter((h) => h.content).forEach((h, i) => {
+        pages.push({ type: 'travel', index: i, month: h.month, content: h.content, imagePreview: h.imagePreview })
+      })
+    } else if (albumType === 'memory') {
+      state.highlights.filter((h) => h.content).forEach((h, i) => {
+        pages.push({ type: 'memory', index: i, month: h.month, content: h.content, imagePreview: h.imagePreview })
+      })
+    }
+    return pages
+  }
+
+  const pages = buildPages()
+  const totalPages = pages.length
+  const safePage = Math.min(currentPage, totalPages - 1)
+  const page = pages[safePage] || pages[0]
+
+  // Build story payload by type
+  const buildStoryPayload = () => {
+    const type = state.type || 'child'
+    if (type === 'travel') {
+      return {
+        type,
+        name: state.name,
+        period: state.birthYear,
+        highlights: state.highlights
+          .filter((h) => h.content)
+          .map((h, i) => ({ date: h.date || `Day ${i + 1}`, content: h.content })),
+      }
+    }
+    if (type === 'memory') {
+      return {
+        type,
+        name: state.name,
+        period: state.birthYear,
+        highlights: state.highlights
+          .filter((h) => h.content)
+          .map((h, i) => ({ title: h.title || `순간 ${i + 1}`, content: h.content })),
+      }
+    }
+    return {
+      type,
+      name: state.name,
+      birthYear: state.birthYear,
+      albumYear: state.albumYear,
+      highlights: state.highlights,
+    }
+  }
+
   // Generate story
   const handleGenerate = async () => {
+    if (state.type === 'child' || state.type === 'pet') {
+      const birth = Number(state.birthYear)
+      const album = Number(state.albumYear)
+      if (birth && album && album < birth) {
+        setGenerateError('앨범 연도는 태어난 연도 이후여야 합니다')
+        return
+      }
+    }
     setGenerating(true)
     setGenerateError(null)
     try {
-      const res = await generateStory(state.name, state.birthYear, state.albumYear, state.highlights)
+      const payload = buildStoryPayload()
+      console.log('POST /api/story/generate payload:', payload)
+      const res = await generateStory(payload)
       const result = res.data?.data || res.data
       dispatch({ type: 'SET_GENERATED_STORY', payload: result })
     } catch (err) {
@@ -78,7 +183,7 @@ export default function Preview() {
   const handleRegenerateStory = async () => {
     setRegeneratingStory(true)
     try {
-      const res = await generateStory(state.name, state.birthYear, state.albumYear, state.highlights)
+      const res = await generateStory(buildStoryPayload())
       const result = res.data?.data || res.data
       dispatch({ type: 'SET_GENERATED_STORY', payload: result })
     } catch { /* ignore */ }
@@ -115,8 +220,6 @@ export default function Preview() {
     setTemplateModal(null)
   }
 
-  const hasStory = !!state.generatedStory
-
   // Pencil icon SVG
   const PencilIcon = () => (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -143,31 +246,141 @@ export default function Preview() {
       <main className="flex-1 px-4 pb-16">
         <div className="max-w-3xl mx-auto">
 
-          {/* Cover Preview Card */}
-          <div className="w-full max-w-sm mx-auto aspect-[3/4] rounded-2xl border border-[#E5E5E3] bg-white relative overflow-hidden flex flex-col mb-8">
-            <div className="absolute inset-0">
-              <img src={coverImage} alt="" className="w-full h-full object-cover opacity-20" />
-            </div>
-            <div className="relative flex-1 flex flex-col items-center justify-center px-6">
-              <img src={coverImage} alt="" className="w-2/5 aspect-square object-cover rounded-xl shadow-lg mb-6" />
-              <h3 className="text-2xl font-bold text-[#1A1A1A] text-center mb-1">
-                {story.title || coverTitle}
-              </h3>
-              <p className="text-sm text-[#6B6B6B] text-center">{story.subtitle || ''}</p>
-            </div>
-            {dateRange && (
-              <div className="relative px-4 pb-4 text-center">
-                <p className="text-xs text-[#ACACAC] font-mono">{dateRange}</p>
-              </div>
-            )}
+          {/* Page Slider with Side Arrows */}
+          <div className="flex items-center justify-center gap-3 mb-2">
+            {/* Left Arrow */}
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-[#6B6B6B] hover:text-primary transition-colors duration-200 cursor-pointer shadow-sm"
+              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+              disabled={safePage <= 0}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-primary disabled:text-[#D1D1CF] cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 flex-shrink-0"
             >
-              <PencilIcon />
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              </svg>
             </button>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+
+            {/* Card */}
+            <div className="w-full max-w-sm">
+              <div className="aspect-[3/4] rounded-2xl border border-[#E5E5E3] bg-white shadow-sm relative overflow-hidden flex flex-col">
+
+                {/* Cover page */}
+                {page.type === 'cover' && (
+                  <>
+                    <div className="absolute inset-0">
+                      <img src={coverImage} alt="" className="w-full h-full object-cover opacity-20" />
+                    </div>
+                    <div className="relative flex-1 flex flex-col items-center justify-center px-6">
+                      <img src={coverImage} alt="" className="w-2/5 aspect-square object-cover rounded-xl shadow-lg mb-6" />
+                      <h3 className="text-2xl font-bold text-[#1A1A1A] text-center mb-1">
+                        {story.title || coverTitle}
+                      </h3>
+                      <p className="text-sm text-[#6B6B6B] text-center">{story.subtitle || ''}</p>
+                    </div>
+                    {dateRange && (
+                      <div className="relative px-4 pb-4 text-center">
+                        <p className="text-xs text-[#ACACAC] font-mono">{dateRange}</p>
+                      </div>
+                    )}
+                    <div className="absolute top-3 right-3 flex gap-1.5">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-7 px-2.5 rounded-full bg-white/80 hover:bg-white flex items-center gap-1 text-[#6B6B6B] hover:text-primary text-[10px] font-medium transition-colors duration-200 cursor-pointer shadow-sm"
+                      >
+                        <PencilIcon />
+                        <span>사진 변경</span>
+                      </button>
+                      {state.coverImagePreview && (
+                        <button
+                          onClick={handleRemoveCoverImage}
+                          className="w-7 h-7 rounded-full bg-[#1A1A1A]/60 hover:bg-[#1A1A1A] text-white flex items-center justify-center cursor-pointer transition-colors duration-200 shadow-sm"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+                  </>
+                )}
+
+                {/* Story page */}
+                {page.type === 'story' && (
+                  <div className="flex-1 flex flex-col p-6 overflow-y-auto">
+                    <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">AI 성장 스토리</p>
+                    <p className="text-sm text-[#4A4A4A] leading-relaxed whitespace-pre-wrap flex-1">
+                      {story.story || ''}
+                    </p>
+                  </div>
+                )}
+
+                {/* Inner page (month / travel / memory) */}
+                {(page.type === 'month' || page.type === 'travel' || page.type === 'memory') && (
+                  <div className="flex-1 flex flex-col">
+                    {/* Photo area */}
+                    {page.imagePreview ? (
+                      <div className="relative h-2/5">
+                        <img src={page.imagePreview} alt="" className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => removeHighlightPhoto(page.month)}
+                          className="absolute top-2 right-2 h-6 px-2 rounded-full bg-[#1A1A1A]/60 hover:bg-[#1A1A1A] text-white flex items-center gap-1 text-[10px] font-medium cursor-pointer transition-colors duration-200"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                          <span>삭제</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => highlightInputRefs.current[page.month]?.click()}
+                        className="h-2/5 border-b border-dashed border-[#E5E5E3] bg-[#FAFAF9] flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-primary/5 transition-colors duration-200"
+                      >
+                        <svg className="w-7 h-7 text-[#D1D1CF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                        </svg>
+                        <span className="text-xs text-[#ACACAC]">사진 추가</span>
+                      </button>
+                    )}
+                    <input
+                      ref={(el) => (highlightInputRefs.current[page.month] = el)}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/heic"
+                      onChange={(e) => handleHighlightPhoto(page.month, e)}
+                      className="hidden"
+                    />
+                    {/* Text content */}
+                    <div className="flex-1 p-5 flex flex-col justify-center">
+                      <p className="text-lg font-bold text-primary mb-2">
+                        {page.type === 'month' && `${page.month}월`}
+                        {page.type === 'travel' && `Day ${page.index + 1}`}
+                        {page.type === 'memory' && `순간 ${page.index + 1}`}
+                      </p>
+                      <p className="text-sm text-[#4A4A4A] leading-relaxed">
+                        {page.content || (page.type === 'month' ? '이달은 조용히 흘러갔어요.' : '')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Arrow */}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={safePage >= totalPages - 1}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-primary disabled:text-[#D1D1CF] cursor-pointer disabled:cursor-not-allowed transition-colors duration-200 flex-shrink-0"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
+
+          {/* Page Number */}
+          <p className="text-center text-xs text-[#6B6B6B] font-medium mb-8">
+            {safePage + 1} / {totalPages}
+          </p>
 
           {/* Story section (after generation) */}
           {hasStory && (
@@ -373,6 +586,10 @@ export default function Preview() {
           )}
 
           {/* Action buttons */}
+          <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-4 text-center leading-relaxed">
+            앨범은 최소 24페이지로 구성되며<br />부족한 페이지는 자동으로 채워져요.
+          </p>
+
           {!hasStory ? (
             <button
               onClick={handleGenerate}

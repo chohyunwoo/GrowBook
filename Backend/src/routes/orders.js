@@ -3,6 +3,7 @@ const { SweetbookClient } = require('../sdk/client')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
 const { createOrder, estimateOrder, getOrder, cancelOrder, ServiceError } = require('../services/sweetbookService')
+const { supabase, saveOrder } = require('../services/supabaseService')
 
 const router = express.Router()
 
@@ -103,7 +104,7 @@ router.post(
 router.post(
   '/',
   asyncHandler(async (req, res) => {
-    const { bookUid, shipping } = req.body
+    const { bookUid, shipping, title, type } = req.body
 
     if (!bookUid) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'bookUid가 필요합니다.' })
@@ -114,6 +115,25 @@ router.post(
 
     try {
       const result = await createOrder(bookUid, shipping)
+
+      // Supabase에 주문 정보 저장
+      const token = req.headers.authorization?.replace('Bearer ', '')
+      if (token) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser(token)
+          if (user) {
+            await saveOrder(user.id, {
+              orderUid: result.orderUid,
+              albumTitle: title || '',
+              albumType: type || 'child',
+              status: 20,
+            })
+          }
+        } catch (saveErr) {
+          console.error('[orders] Supabase 주문 저장 실패:', saveErr.message)
+        }
+      }
+
       res.json({ success: true, data: result })
     } catch (err) {
       if (err instanceof ServiceError && err.code === ERROR_CODE.INSUFFICIENT_CREDIT) {

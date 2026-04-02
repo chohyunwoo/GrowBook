@@ -8,7 +8,7 @@ const router = express.Router()
 
 const storyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 150,
   message: { success: false, error: ERROR_CODE.INVALID_INPUT, message: '요청 한도를 초과했습니다. 15분 후 다시 시도해주세요.' },
 })
 
@@ -79,8 +79,17 @@ router.post(
     if ((type === 'child' || type === 'pet') && albumYear < birthYear) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '앨범 연도는 출생 연도보다 크거나 같아야 합니다.' })
     }
+    if ((type === 'travel' || type === 'memory') && (!period || typeof period !== 'string' || period.trim().length === 0)) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'period(기간)는 필수입니다.' })
+    }
     if (!Array.isArray(highlights) || highlights.length === 0) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '하이라이트는 1개 이상이어야 합니다.' })
+    }
+    if (type === 'travel' && highlights.some((h) => !h.date || !h.content)) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'travel 하이라이트는 date, content가 필수입니다.' })
+    }
+    if (type === 'memory' && highlights.some((h) => !h.title || !h.content)) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'memory 하이라이트는 title, content가 필수입니다.' })
     }
 
     try {

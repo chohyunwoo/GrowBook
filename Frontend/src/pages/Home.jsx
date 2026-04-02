@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useApp } from '../context/AppContext'
 import { getOrder } from '../api/orderApi'
+import { signOut } from '../lib/supabase'
 
 const ORDER_STATUS = {
   20: '결제 완료',
@@ -22,6 +24,8 @@ function getDeliveryDate() {
 
 export default function Home() {
   const navigate = useNavigate()
+  const { state, dispatch } = useApp()
+  const user = state.user
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [orderUidInput, setOrderUidInput] = useState('')
   const [orderResult, setOrderResult] = useState(null)
@@ -43,6 +47,19 @@ export default function Home() {
     setOrderLoading(false)
   }
 
+  const handleStart = () => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    navigate('/type-select')
+  }
+
+  const handleLogout = async () => {
+    await signOut()
+    dispatch({ type: 'SET_USER', payload: null })
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -51,18 +68,29 @@ export default function Home() {
           GrowBook
         </Link>
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => setShowOrderModal(true)}
-            className="text-sm text-primary hover:text-primary-dark transition-colors duration-200 cursor-pointer"
-          >
-            주문 조회
-          </button>
-          <Link
-            to="/shipping"
-            className="text-sm text-primary hover:text-primary-dark transition-colors duration-200"
-          >
-            배송지 관리
-          </Link>
+          {user ? (
+            <>
+              <Link
+                to="/mypage"
+                className="text-sm text-primary hover:text-primary-dark font-medium transition-colors duration-200"
+              >
+                마이페이지
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A] font-medium cursor-pointer transition-colors duration-200"
+              >
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="text-sm text-primary hover:text-primary-dark font-medium transition-colors duration-200"
+            >
+              로그인
+            </Link>
+          )}
         </div>
       </header>
 
@@ -77,7 +105,7 @@ export default function Home() {
           </p>
 
           <button
-            onClick={() => navigate('/type-select')}
+            onClick={handleStart}
             className="w-full max-w-xs mx-auto bg-primary hover:bg-primary-dark text-white text-base font-medium py-4 px-8 rounded-xl transition-colors duration-200 cursor-pointer"
           >
             앨범 만들기 시작

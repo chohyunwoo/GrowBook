@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { estimateOrder, createOrder } from '../api/orderApi'
 import { getCredits } from '../api/creditsApi'
+import { supabase } from '../lib/supabase'
 
 const STORAGE_KEY = 'shipping_addresses'
 
@@ -125,9 +126,20 @@ export default function Order() {
         const newAddr = { ...form, id: Date.now(), is_default: false }
         saveAddressToStorage(newAddr)
       }
-      const res = await createOrder(state.bookUid, shipping)
+      const accessToken = supabase
+        ? (await supabase.auth.getSession())?.data?.session?.access_token
+        : null
+      const res = await createOrder(state.bookUid, shipping, accessToken)
       const orderUid = res.data?.data?.orderUid || res.data?.orderUid || res.data?.uid
       dispatch({ type: 'SET_ORDER_UID', payload: orderUid })
+      // Save to localStorage for MyPage order history
+      try {
+        const uids = JSON.parse(localStorage.getItem('my_order_uids') || '[]')
+        if (!uids.includes(orderUid)) {
+          uids.unshift(orderUid)
+          localStorage.setItem('my_order_uids', JSON.stringify(uids))
+        }
+      } catch { /* ignore */ }
       navigate('/complete')
     } catch (err) {
       if (err.type === 'INSUFFICIENT_CREDIT' || err.response?.status === 402) {

@@ -24,7 +24,7 @@ const EMPTY_FORM = {
   memo: '',
 }
 
-export default function ShippingManager() {
+export default function ShippingManager({ embedded = false }) {
   const navigate = useNavigate()
   const [addresses, setAddresses] = useState(loadAddresses)
   const [showForm, setShowForm] = useState(false)
@@ -66,24 +66,8 @@ export default function ShippingManager() {
     )
   }
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors duration-200 cursor-pointer"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-          </svg>
-        </button>
-        <h2 className="text-base font-semibold text-[#1A1A1A]">배송지 관리</h2>
-        <div className="w-5" />
-      </header>
-
-      <main className="flex-1 px-4 pb-16">
-        <div className="max-w-lg mx-auto">
+  const content = (
+    <>
           {/* Address List */}
           {addresses.length === 0 && !showForm && (
             <div className="text-center py-16">
@@ -228,6 +212,28 @@ export default function ShippingManager() {
               + 새 배송지 추가
             </button>
           )}
+    </>
+  )
+
+  if (embedded) return content
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="flex items-center justify-between px-6 py-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors duration-200 cursor-pointer"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <h2 className="text-base font-semibold text-[#1A1A1A]">배송지 관리</h2>
+        <div className="w-5" />
+      </header>
+      <main className="flex-1 px-4 pb-16">
+        <div className="max-w-lg mx-auto">
+          {content}
         </div>
       </main>
     </div>

@@ -75,4 +75,33 @@ router.get(
   })
 )
 
+// 템플릿 상세 조회 (임시)
+router.get(
+  '/:templateUid',
+  asyncHandler(async (req, res) => {
+    const { templateUid } = req.params
+    const baseUrl = process.env.SWEETBOOK_BASE_URL || 'https://api-sandbox.sweetbook.com'
+
+    let result
+    try {
+      const response = await fetch(`${baseUrl}/v1/templates/${templateUid}`, {
+        headers: {
+          Authorization: `Bearer ${process.env.SWEETBOOK_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      result = await response.json()
+    } catch (err) {
+      return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '템플릿 상세 조회 중 오류가 발생했습니다.' })
+    }
+
+    const template = result?.data ?? result
+    console.log('[template 상세]', JSON.stringify(template, null, 2))
+    res.json({ success: true, data: template })
+  })
+)
+
 module.exports = router

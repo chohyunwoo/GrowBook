@@ -1,11 +1,12 @@
 import { createContext, useContext, useReducer } from 'react'
 
 const initialState = {
+  user: null,
   type: 'child',
   name: '',
   birthYear: '',
   albumYear: '',
-  highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '' })),
+  highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '', imageFile: null, imagePreview: null })),
   generatedStory: null,
   bookUid: null,
   coverImageFile: null,
@@ -19,6 +20,8 @@ const initialState = {
 
 function appReducer(state, action) {
   switch (action.type) {
+    case 'SET_USER':
+      return { ...state, user: action.payload }
     case 'SET_TYPE':
       return { ...state, type: action.payload }
     case 'SET_NAME':
@@ -32,7 +35,7 @@ function appReducer(state, action) {
         ...state,
         highlights: state.highlights.map((h) =>
           h.month === action.payload.month
-            ? { ...h, content: action.payload.content }
+            ? { ...h, ...action.payload }
             : h
         ),
       }
@@ -57,7 +60,7 @@ function appReducer(state, action) {
     case 'SET_ORDER_UID':
       return { ...state, orderUid: action.payload }
     case 'RESET':
-      return { ...initialState, type: state.type, highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '' })) }
+      return { ...initialState, user: state.user, type: state.type, highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '', imageFile: null, imagePreview: null })) }
     default:
       return state
   }

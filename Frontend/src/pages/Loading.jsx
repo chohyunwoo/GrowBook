@@ -36,11 +36,26 @@ export default function Loading() {
     try {
       // Step 1: 앨범 데이터 구성 (POST /api/books/create)
       updateStep(1, 'loading')
+      // Format highlights by type
+      let highlights
+      if (state.type === 'travel') {
+        highlights = state.highlights
+          .filter((h) => h.content)
+          .map((h, i) => ({ date: `Day ${i + 1}`, content: h.content }))
+      } else if (state.type === 'memory') {
+        highlights = state.highlights
+          .filter((h) => h.content)
+          .map((h, i) => ({ title: `순간 ${i + 1}`, content: h.content }))
+      } else {
+        highlights = state.highlights
+      }
+
       const bookData = {
         title: story.title,
         subtitle: story.subtitle,
         story: story.story,
-        highlights: state.highlights,
+        type: state.type,
+        highlights,
         coverTemplateUid: state.selectedCoverTemplateUid || '4MY2fokVjkeY',
         contentTemplateUid: state.selectedContentTemplateUid || 'vHA59XPPKqak',
       }
