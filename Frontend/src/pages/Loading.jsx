@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
-import { createBook } from '../api/bookApi'
+import { createBookWithImages } from '../api/bookApi'
 
 const STEPS = [
   { id: 1, label: '앨범 데이터 구성 중' },
@@ -62,8 +62,12 @@ export default function Loading() {
       if (state.coverImageFileName) {
         bookData.coverImageFileName = state.coverImageFileName
       }
+
+      // Collect highlight image files
+      const highlightImages = state.highlights.map((h) => h.imageFile || null)
+
       console.log('POST /api/books/create params:', bookData)
-      const bookRes = await createBook(bookData)
+      const bookRes = await createBookWithImages(bookData, highlightImages, state.coverImageFile)
       const bookUid = bookRes.data?.data?.bookUid || bookRes.data?.bookUid || bookRes.data?.uid
       dispatch({ type: 'SET_BOOK_UID', payload: bookUid })
       updateStep(1, 'done')

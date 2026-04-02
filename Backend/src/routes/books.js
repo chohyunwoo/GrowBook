@@ -29,34 +29,35 @@ function getSweetbookClient() {
   })
 }
 
+// highlight_image_0 ~ highlight_image_21 + cover_image
+const createBookFields = [
+  { name: 'cover_image', maxCount: 1 },
+  ...Array.from({ length: 22 }, (_, i) => ({ name: `highlight_image_${i}`, maxCount: 1 })),
+]
+
 /**
  * @swagger
  * /api/books/create:
  *   post:
- *     summary: Sweetbook SDK로 도서 생성 (5단계)
+ *     summary: Sweetbook SDK로 도서 생성 (multipart/form-data)
  *     tags: [Books]
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [title, subtitle, story, coverTemplateUid, contentTemplateUid, highlights]
+ *             required: [data]
  *             properties:
- *               title:
+ *               data:
  *                 type: string
- *               subtitle:
+ *                 description: JSON 문자열 (bookData)
+ *               cover_image:
  *                 type: string
- *               story:
+ *                 format: binary
+ *               highlight_image_0:
  *                 type: string
- *               coverTemplateUid:
- *                 type: string
- *               contentTemplateUid:
- *                 type: string
- *               coverImageFileName:
- *                 type: string
- *               highlights:
- *                 type: array
+ *                 format: binary
  *     responses:
  *       200:
  *         description: 도서 생성 성공
@@ -69,15 +70,45 @@ function getSweetbookClient() {
  */
 router.post(
   '/create',
+  (req, res, next) => {
+    upload.fields(createBookFields)(req, res, (err) => {
+      if (!err) return next()
+      if (err.code === 'FILE_TYPE_NOT_ALLOWED') {
+        return res.status(400).json({ success: false, error: ERROR_CODE.FILE_TYPE_NOT_ALLOWED, message: '허용되지 않는 파일 형식입니다. (jpg, png, webp만 허용)' })
+      }
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, error: ERROR_CODE.FILE_SIZE_EXCEEDED, message: '파일 크기가 20MB를 초과합니다.' })
+      }
+      next(err)
+    })
+  },
   asyncHandler(async (req, res) => {
-    const { title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, albumYear, highlights } = req.body
+    let bookData
+    try {
+      bookData = JSON.parse(req.body.data)
+    } catch (err) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'data 필드는 유효한 JSON이어야 합니다.' })
+    }
+
+    const { title, subtitle, story, coverTemplateUid, contentTemplateUid, albumYear, highlights, type } = bookData
 
     if (!title || !subtitle || !story || !coverTemplateUid || !contentTemplateUid || !highlights) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '필수 항목이 누락되었습니다.' })
     }
 
+    // 표지 이미지 매핑
+    const coverImageFile = req.files?.cover_image?.[0] || null
+
+    // 하이라이트 이미지 매핑
+    for (let i = 0; i < highlights.length; i++) {
+      const imageFile = req.files?.[`highlight_image_${i}`]?.[0]
+      if (imageFile) {
+        highlights[i].imageFile = imageFile
+      }
+    }
+
     try {
-      const result = await createBook({ title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, albumYear, highlights })
+      const result = await createBook({ title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFile, albumYear, highlights, type })
       res.json({ success: true, data: result })
     } catch (err) {
       if (err instanceof ServiceError) {

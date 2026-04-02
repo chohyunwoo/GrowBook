@@ -1,3 +1,4 @@
+const { File } = require('node:buffer')
 const { SweetbookClient } = require('../sdk/client')
 const { SweetbookApiError } = require('../sdk/core')
 const ERROR_CODE = require('../constants/errorCode')
@@ -43,7 +44,7 @@ function handleSweetbookError(err) {
  * @param {Array<{month: number, content: string}>} params.highlights
  * @returns {Promise<{bookUid: string}>}
  */
-async function createBook({ title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, albumYear, highlights, type = 'child' }) {
+async function createBook({ title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFile, coverImageFileName, albumYear, highlights, type = 'child' }) {
   const client = getClient()
   const year = albumYear || new Date().getFullYear()
 
@@ -83,17 +84,39 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
   }
   await testBlankPage(bookUid)
 
-  // Step 2: 표지 추가 (multipart/form-data, parameters는 SDK 내부에서 JSON 직렬화)
+  // Step 2: 표지 이미지 업로드 + 표지 추가
+  let uploadedCoverFileName = coverImageFileName || null
+  if (coverImageFile) {
+    console.log('[표지 이미지 업로드 시도]', {
+      filename: coverImageFile.originalname,
+      size: coverImageFile.size,
+      mimetype: coverImageFile.mimetype,
+    })
+    try {
+      const file = new File(
+        [coverImageFile.buffer],
+        coverImageFile.originalname || 'cover.jpg',
+        { type: coverImageFile.mimetype }
+      )
+      const uploadResult = await client.photos.upload(bookUid, file)
+      uploadedCoverFileName = uploadResult.fileName
+      console.log('[Step 2] 표지 이미지 업로드 완료:', uploadedCoverFileName)
+    } catch (err) {
+      console.error('[Step 2] 표지 이미지 업로드 실패:', err.message)
+      handleSweetbookError(err)
+    }
+  }
+
   let coverParams
   if (coverTemplateUid === '4MY2fokVjkeY') {
     coverParams = {
       spineTitle: title,
       dateRange: `${year}.01 - ${year}.12`,
-      frontPhoto: 'https://picsum.photos/800/1050',
+      frontPhoto: uploadedCoverFileName || 'https://picsum.photos/800/1050',
     }
   } else if (coverTemplateUid === '79yjMH3qRPly') {
     coverParams = { title, dateRange: subtitle }
-    if (coverImageFileName) coverParams.coverPhoto = coverImageFileName
+    if (uploadedCoverFileName) coverParams.coverPhoto = uploadedCoverFileName
   } else {
     coverParams = {}
   }
@@ -151,77 +174,70 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
   }
 
   // Step 4: 타입별 내지 삽입
+  const PHOTO_TEMPLATE_UID = '2R8uMwVgTrpc'  // 사진 포함 템플릿
+  const TEXT_TEMPLATE_UID = contentTemplateUid  // 텍스트 전용 템플릿
   let contentPageCount = 0
+
+  // 하이라이트 이미지 업로드 + 내지 삽입 헬퍼
+  async function insertContentPage(label, params, imageFile) {
+    let templateUid = TEXT_TEMPLATE_UID
+    let contentParams = { ...params }
+
+    if (imageFile) {
+      console.log(`[Step 4] ${label} 이미지 업로드 시도:`, {
+        filename: imageFile.originalname,
+        size: imageFile.size,
+        mimetype: imageFile.mimetype,
+      })
+      try {
+        const file = new File(
+          [imageFile.buffer],
+          imageFile.originalname || 'highlight.jpg',
+          { type: imageFile.mimetype }
+        )
+        const photo = await client.photos.upload(bookUid, file)
+        contentParams.photo1 = photo.fileName
+        templateUid = PHOTO_TEMPLATE_UID
+        console.log(`[Step 4] ${label} 이미지 업로드 완료:`, photo.fileName)
+      } catch (err) {
+        console.error(`[Step 4] ${label} 이미지 업로드 실패:`, err.message)
+        // 이미지 업로드 실패 시 텍스트 전용 템플릿으로 fallback
+      }
+    }
+
+    try {
+      await client.contents.insert(bookUid, templateUid, contentParams, { breakBefore: 'page' })
+      console.log(`[Step 4] 완료 - ${label}`)
+      contentPageCount++
+    } catch (err) {
+      console.error(`[Step 4] 실패 - ${label}`)
+      console.error('  message:', err.message)
+      console.error('  statusCode:', err.statusCode)
+      console.error('  errorCode:', err.errorCode)
+      console.error('  details:', err.details)
+      handleSweetbookError(err)
+    }
+  }
 
   if (type === 'child' || type === 'pet') {
     // child/pet: 1~12월 반복
     for (let month = 1; month <= 12; month++) {
       const highlight = highlights.find((h) => h.month === month)
       const content = highlight?.content?.trim() || '이달은 조용히 흘러갔어요.'
-      console.log(`[Step 4] 시작 - contents.insert (${month}월)`, { content })
-      try {
-        await client.contents.insert(
-          bookUid,
-          contentTemplateUid,
-          { date: `${month}.01`, title: `${month}월`, diaryText: content },
-          { breakBefore: 'page' }
-        )
-        console.log(`[Step 4] 완료 - ${month}월`)
-        contentPageCount++
-      } catch (err) {
-        console.error(`[Step 4] 실패 - contents.insert (${month}월) 에러`)
-        console.error('  message:', err.message)
-        console.error('  statusCode:', err.statusCode)
-        console.error('  errorCode:', err.errorCode)
-        console.error('  details:', err.details)
-        handleSweetbookError(err)
-      }
+      console.log(`[Step 4] 시작 - (${month}월)`, { content, hasImage: !!highlight?.imageFile })
+      await insertContentPage(`${month}월`, { date: `${month}.01`, title: `${month}월`, diaryText: content }, highlight?.imageFile)
     }
   } else if (type === 'travel') {
-    // travel: highlights 순서대로
     for (let i = 0; i < highlights.length; i++) {
       const h = highlights[i]
-      console.log(`[Step 4] 시작 - contents.insert (travel ${i + 1}/${highlights.length})`, { date: h.date, content: h.content })
-      try {
-        await client.contents.insert(
-          bookUid,
-          contentTemplateUid,
-          { date: h.date, title: h.date, diaryText: h.content },
-          { breakBefore: 'page' }
-        )
-        console.log(`[Step 4] 완료 - travel ${i + 1}`)
-        contentPageCount++
-      } catch (err) {
-        console.error(`[Step 4] 실패 - contents.insert (travel ${i + 1}) 에러`)
-        console.error('  message:', err.message)
-        console.error('  statusCode:', err.statusCode)
-        console.error('  errorCode:', err.errorCode)
-        console.error('  details:', err.details)
-        handleSweetbookError(err)
-      }
+      console.log(`[Step 4] 시작 - (travel ${i + 1}/${highlights.length})`, { date: h.date, hasImage: !!h.imageFile })
+      await insertContentPage(`travel ${i + 1}`, { date: h.date, title: h.date, diaryText: h.content }, h.imageFile)
     }
   } else if (type === 'memory') {
-    // memory: highlights 순서대로
     for (let i = 0; i < highlights.length; i++) {
       const h = highlights[i]
-      console.log(`[Step 4] 시작 - contents.insert (memory ${i + 1}/${highlights.length})`, { title: h.title, content: h.content })
-      try {
-        await client.contents.insert(
-          bookUid,
-          contentTemplateUid,
-          { date: h.title, title: h.title, diaryText: h.content },
-          { breakBefore: 'page' }
-        )
-        console.log(`[Step 4] 완료 - memory ${i + 1}`)
-        contentPageCount++
-      } catch (err) {
-        console.error(`[Step 4] 실패 - contents.insert (memory ${i + 1}) 에러`)
-        console.error('  message:', err.message)
-        console.error('  statusCode:', err.statusCode)
-        console.error('  errorCode:', err.errorCode)
-        console.error('  details:', err.details)
-        handleSweetbookError(err)
-      }
+      console.log(`[Step 4] 시작 - (memory ${i + 1}/${highlights.length})`, { title: h.title, hasImage: !!h.imageFile })
+      await insertContentPage(`memory ${i + 1}`, { date: h.title, title: h.title, diaryText: h.content }, h.imageFile)
     }
   }
 
