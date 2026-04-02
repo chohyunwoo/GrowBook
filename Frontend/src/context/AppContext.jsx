@@ -6,7 +6,7 @@ const initialState = {
   name: '',
   birthYear: '',
   albumYear: '',
-  highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '', imageFile: null, imagePreview: null })),
+  highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '', memo: '', caption: '', imageFile: null, imagePreview: null })),
   generatedStory: null,
   bookUid: null,
   coverImageFile: null,
@@ -60,7 +60,7 @@ function appReducer(state, action) {
     case 'SET_ORDER_UID':
       return { ...state, orderUid: action.payload }
     case 'RESET':
-      return { ...initialState, user: state.user, type: state.type, highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '', imageFile: null, imagePreview: null })) }
+      return { ...initialState, user: state.user, type: state.type, highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '', memo: '', caption: '', imageFile: null, imagePreview: null })) }
     default:
       return state
   }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { getTemplates } from '../api/templateApi'
-import { generateStory } from '../api/storyApi'
+import { generateStory, generateCaption } from '../api/storyApi'
 
 const DEFAULT_COVER_TEMPLATE = '4MY2fokVjkeY'
 const DEFAULT_CONTENT_TEMPLATE = 'vHA59XPPKqak'
@@ -90,6 +90,24 @@ export default function Preview() {
     dispatch({ type: 'SET_HIGHLIGHT', payload: { month, imageFile: null, imagePreview: null } })
   }
 
+  // Caption generation
+  const [captionLoading, setCaptionLoading] = useState(null) // month number being generated
+
+  const handleGenerateCaption = async (month) => {
+    const h = state.highlights.find((item) => item.month === month)
+    if (!h || !h.content) return
+    setCaptionLoading(month)
+    try {
+      const res = await generateCaption(
+        { month: h.month, content: h.content },
+        state.type || 'child'
+      )
+      const caption = res.data?.data?.caption || res.data?.caption || ''
+      dispatch({ type: 'SET_HIGHLIGHT', payload: { month, caption } })
+    } catch { /* ignore */ }
+    setCaptionLoading(null)
+  }
+
   const hasStory = !!state.generatedStory
 
   // Build pages for slider
@@ -105,15 +123,15 @@ export default function Preview() {
     const albumType = state.type || 'child'
     if (albumType === 'child' || albumType === 'pet') {
       state.highlights.forEach((h) => {
-        pages.push({ type: 'month', month: h.month, content: h.content, imagePreview: h.imagePreview })
+        pages.push({ type: 'month', month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
       })
     } else if (albumType === 'travel') {
       state.highlights.filter((h) => h.content).forEach((h, i) => {
-        pages.push({ type: 'travel', index: i, month: h.month, content: h.content, imagePreview: h.imagePreview })
+        pages.push({ type: 'travel', index: i, month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
       })
     } else if (albumType === 'memory') {
       state.highlights.filter((h) => h.content).forEach((h, i) => {
-        pages.push({ type: 'memory', index: i, month: h.month, content: h.content, imagePreview: h.imagePreview })
+        pages.push({ type: 'memory', index: i, month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
       })
     }
     return pages
@@ -359,6 +377,36 @@ export default function Preview() {
                       <p className="text-sm text-[#4A4A4A] leading-relaxed">
                         {page.content || (page.type === 'month' ? '이달은 조용히 흘러갔어요.' : '')}
                       </p>
+                      {/* Caption */}
+                      {page.caption && (
+                        <p className="text-xs text-primary/80 italic mt-2 leading-relaxed">{page.caption}</p>
+                      )}
+                      {/* AI Caption Button */}
+                      {page.content && (
+                        <button
+                          onClick={() => handleGenerateCaption(page.month)}
+                          disabled={captionLoading === page.month}
+                          className={`mt-3 self-start flex items-center gap-1.5 text-[10px] font-medium px-3 py-1.5 rounded-lg border transition-colors duration-200 ${
+                            captionLoading === page.month
+                              ? 'border-[#E5E5E3] text-[#ACACAC] cursor-not-allowed'
+                              : 'border-primary/30 text-primary hover:bg-primary/5 cursor-pointer'
+                          }`}
+                        >
+                          {captionLoading === page.month ? (
+                            <>
+                              <span className="w-3 h-3 border-2 border-[#ACACAC] border-t-transparent rounded-full animate-spin" />
+                              <span>생성 중...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                              </svg>
+                              <span>{page.caption ? 'AI 캡션 재생성' : 'AI 캡션 생성'}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

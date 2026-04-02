@@ -66,6 +66,23 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
     handleSweetbookError(err)
   }
 
+  // 임시: 빈 페이지 템플릿 단독 테스트
+  async function testBlankPage(testBookUid) {
+    try {
+      console.log('[빈 페이지 테스트] 시작')
+      const result = await client.contents.insert(testBookUid, '2mi1ao0Z4Vxl', {}, {})
+      console.log('[빈 페이지 테스트] 성공:', result)
+    } catch (err) {
+      console.error('[빈 페이지 테스트] 실패')
+      console.error('message:', err.message)
+      console.error('statusCode:', err.statusCode)
+      console.error('errorCode:', err.errorCode)
+      console.error('details:', JSON.stringify(err.details))
+      console.error('response:', JSON.stringify(err.response?.data))
+    }
+  }
+  await testBlankPage(bookUid)
+
   // Step 2: 표지 추가 (multipart/form-data, parameters는 SDK 내부에서 JSON 직렬화)
   let coverParams
   if (coverTemplateUid === '4MY2fokVjkeY') {
@@ -208,22 +225,27 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
     }
   }
 
-  // Step 5: 빈 페이지 추가 (최소 24페이지: 표지 1 + 전체스토리 1 + 내지 + 빈페이지)
+  // Step 5: 빈 페이지 추가 (최소 24페이지, 4의 배수)
   const BLANK_TEMPLATE_UID = '2mi1ao0Z4Vxl'
-  const MIN_PAGES = 24
-  const usedPages = 1 + 1 + contentPageCount // 표지 + 전체스토리 + 내지
-  const BLANK_PAGE_COUNT = Math.max(0, MIN_PAGES - usedPages)
-  console.log(`[Step 5] 시작 - 빈 페이지 ${BLANK_PAGE_COUNT}개 추가 (사용: ${usedPages}, 최소: ${MIN_PAGES})`)
-  for (let i = 1; i <= BLANK_PAGE_COUNT; i++) {
+  const minPages = 24
+  const usedPages = 1 + contentPageCount // 전체스토리 + 내지 (표지는 pageCount에서 제외)
+  let totalNeeded = Math.max(minPages, usedPages)
+  if (totalNeeded % 4 !== 0) {
+    totalNeeded = totalNeeded + (4 - totalNeeded % 4)
+  }
+  const blankPages = totalNeeded - usedPages
+  console.log('[페이지 계산]', { usedPages, totalNeeded, blankPages })
+  for (let i = 1; i <= blankPages; i++) {
     try {
-      await client.contents.insert(bookUid, BLANK_TEMPLATE_UID, {}, { breakBefore: 'page' })
-      console.log(`[Step 5] 빈 페이지 ${i}/${BLANK_PAGE_COUNT} 추가 완료`)
+      const result = await client.contents.insert(bookUid, BLANK_TEMPLATE_UID, {}, { breakBefore: 'page' })
+      console.log(`[Step 5] 빈 페이지 ${i}/${blankPages} 추가 완료 — pageNum: ${result?.pageNum}, pageSide: ${result?.pageSide}`, JSON.stringify(result))
     } catch (err) {
-      console.error(`[Step 5] 빈 페이지 ${i} 추가 실패`)
-      console.error('  message:', err.message)
-      console.error('  statusCode:', err.statusCode)
-      console.error('  errorCode:', err.errorCode)
-      console.error('  details:', err.details)
+      console.error(`[Step 5] 빈 페이지 ${i}/${blankPages} 삽입 실패:`, {
+        message: err.message,
+        statusCode: err.statusCode,
+        errorCode: err.errorCode,
+        details: JSON.stringify(err.details),
+      })
       handleSweetbookError(err)
     }
   }

@@ -137,4 +137,61 @@ async function generateStory({ type = 'child', name, birthYear, albumYear, perio
   return data
 }
 
-module.exports = { generateStory }
+/**
+ * 하이라이트 텍스트를 감성적인 캡션으로 변환합니다.
+ * @param {string} highlight - 원본 텍스트
+ * @param {string} type - 앨범 타입
+ * @returns {Promise<{caption: string}>}
+ */
+async function generateCaption(highlight, type) {
+  if (process.env.NODE_ENV === 'development') {
+    log('[claudeService] caption Mock 반환 (development)')
+    return { caption: highlight + '의 순간' }
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    log('[claudeService] caption Mock 반환 (ANTHROPIC_API_KEY 없음)')
+    return { caption: highlight + '의 순간' }
+  }
+
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 256,
+      system: '당신은 감성적인 글작가입니다. 사용자가 입력한 짧은 텍스트를 더 감성적이고 시적인 표현으로 변환해주세요. 20자 이내로 작성하고 JSON만 반환하세요.',
+      messages: [{ role: 'user', content: `아래 텍스트를 감성적인 캡션으로 변환해줘:\n${highlight}\n반환 형식: { "caption": "변환된 캡션" }` }],
+    })
+  } catch (err) {
+    logError('[claudeService] caption API 호출 실패:', err.message)
+    const error = new Error('AI 캡션 생성 중 오류가 발생했습니다.')
+    error.code = ERROR_CODE.CLAUDE_API_ERROR
+    throw error
+  }
+
+  const text = message.content[0].text
+  const match = text.match(/\{[\s\S]*\}/)
+  if (!match) {
+    logError('[claudeService] caption JSON 추출 실패. 응답:', text)
+    const error = new Error('AI 응답을 파싱할 수 없습니다.')
+    error.code = ERROR_CODE.CLAUDE_API_ERROR
+    throw error
+  }
+
+  let data
+  try {
+    data = JSON.parse(match[0])
+  } catch (err) {
+    logError('[claudeService] caption JSON 파싱 실패:', match[0])
+    const error = new Error('AI 응답 JSON 파싱에 실패했습니다.')
+    error.code = ERROR_CODE.CLAUDE_API_ERROR
+    throw error
+  }
+
+  log('[claudeService] caption 생성 완료:', data.caption)
+  return data
+}
+
+module.exports = { generateStory, generateCaption }

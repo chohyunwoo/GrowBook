@@ -2,7 +2,7 @@ const express = require('express')
 const rateLimit = require('express-rate-limit')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
-const { generateStory } = require('../services/claudeService')
+const { generateStory, generateCaption } = require('../services/claudeService')
 
 const router = express.Router()
 
@@ -98,6 +98,49 @@ router.post(
     } catch (err) {
       const code = err.code === ERROR_CODE.CLAUDE_API_ERROR ? ERROR_CODE.CLAUDE_API_ERROR : ERROR_CODE.CLAUDE_API_ERROR
       return res.status(502).json({ success: false, error: code, message: err.message })
+    }
+  })
+)
+
+/**
+ * @swagger
+ * /api/story/caption:
+ *   post:
+ *     summary: 하이라이트 텍스트를 감성 캡션으로 변환
+ *     tags: [Story]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [highlight]
+ *             properties:
+ *               highlight:
+ *                 type: string
+ *                 example: 첫 걸음마를 떼었어요
+ *               type:
+ *                 type: string
+ *                 example: child
+ *     responses:
+ *       200:
+ *         description: 캡션 생성 성공
+ */
+router.post(
+  '/caption',
+  storyLimiter,
+  asyncHandler(async (req, res) => {
+    const { highlight, type } = req.body
+
+    if (!highlight || typeof highlight !== 'string' || highlight.trim().length === 0) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'highlight 텍스트가 필요합니다.' })
+    }
+
+    try {
+      const data = await generateCaption(highlight.trim(), type)
+      res.json({ success: true, data })
+    } catch (err) {
+      return res.status(502).json({ success: false, error: err.code || ERROR_CODE.CLAUDE_API_ERROR, message: err.message })
     }
   })
 )
