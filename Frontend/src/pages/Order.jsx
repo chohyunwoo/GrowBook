@@ -65,6 +65,7 @@ export default function Order() {
   // Fetch estimate + credits on mount
   useEffect(() => {
     const fetch = async () => {
+      console.log('POST /api/orders/estimate bookUid:', state.bookUid)
       try {
         const [estRes, credRes] = await Promise.all([
           estimateOrder(state.bookUid),
@@ -90,20 +91,28 @@ export default function Order() {
       const addr = savedAddresses.find((a) => a.id === selectedAddressId)
       if (!addr) return null
       return {
-        recipient_name: addr.recipient_name,
-        recipient_phone: addr.recipient_phone,
-        postal_code: addr.postal_code,
+        recipientName: addr.recipient_name,
+        recipientPhone: addr.recipient_phone,
+        postalCode: addr.postal_code,
         address1: addr.address1,
-        address2: addr.address2,
-        memo: addr.memo,
+        address2: addr.address2 || '',
+        memo: addr.memo || '',
       }
     }
     if (!form.recipient_name || !form.recipient_phone || !form.address1) return null
-    return { ...form }
+    return {
+      recipientName: form.recipient_name,
+      recipientPhone: form.recipient_phone,
+      postalCode: form.postal_code,
+      address1: form.address1,
+      address2: form.address2 || '',
+      memo: form.memo || '',
+    }
   }
 
   const handleOrder = async () => {
     const shipping = getShippingData()
+    console.log('주문 shipping 데이터:', shipping)
     if (!shipping) {
       setError('배송지를 입력해주세요')
       return
@@ -134,11 +143,12 @@ export default function Order() {
     setOrdering(false)
   }
 
-  const itemPrice = estimate?.itemPrice ?? estimate?.item ?? 0
-  const shippingPrice = estimate?.shippingPrice ?? estimate?.shipping ?? 0
-  const packagingPrice = estimate?.packagingPrice ?? estimate?.packaging ?? 0
-  const totalPrice = estimate?.totalPrice ?? estimate?.total ?? itemPrice + shippingPrice + packagingPrice
+  const productAmount = estimate?.productAmount ?? estimate?.itemPrice ?? estimate?.item ?? 0
+  const shippingFee = estimate?.shippingFee ?? estimate?.shippingPrice ?? estimate?.shipping ?? 0
+  const totalAmount = estimate?.totalAmount ?? estimate?.totalPrice ?? estimate?.total ?? productAmount + shippingFee
+  const paidCreditAmount = estimate?.paidCreditAmount ?? totalAmount
   const balance = credits?.balance ?? credits?.amount ?? 0
+  const insufficientBalance = balance < paidCreditAmount
 
   const canOrder = activeTab === 'saved' ? !!selectedAddressId : (form.recipient_name && form.recipient_phone && form.address1)
 
@@ -173,20 +183,20 @@ export default function Order() {
             ) : (
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between text-[#6B6B6B]">
-                  <span>상품 금액</span>
-                  <span>{itemPrice.toLocaleString()}원</span>
+                  <span>제작비</span>
+                  <span>{productAmount.toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between text-[#6B6B6B]">
                   <span>배송비</span>
-                  <span>{shippingPrice.toLocaleString()}원</span>
+                  <span>{shippingFee.toLocaleString()}원</span>
                 </div>
-                <div className="flex justify-between text-[#6B6B6B]">
-                  <span>포장비</span>
-                  <span>{packagingPrice.toLocaleString()}원</span>
+                <div className="border-t border-[#E5E5E3] pt-3 mt-3 flex justify-between text-[#1A1A1A]">
+                  <span className="font-medium">합계</span>
+                  <span className="font-semibold">{totalAmount.toLocaleString()}원</span>
                 </div>
-                <div className="border-t border-[#E5E5E3] pt-3 mt-3 flex justify-between font-bold text-[#1A1A1A]">
-                  <span>총 결제 금액</span>
-                  <span className="text-primary text-lg">{totalPrice.toLocaleString()}원</span>
+                <div className="flex justify-between font-bold text-[#1A1A1A]">
+                  <span>실제 차감액 <span className="font-normal text-xs text-[#ACACAC]">(부가세 포함)</span></span>
+                  <span className="text-primary text-lg">{paidCreditAmount.toLocaleString()}원</span>
                 </div>
               </div>
             )}
@@ -194,9 +204,18 @@ export default function Order() {
 
           {/* Credits */}
           {!loadingData && (
-            <div className="bg-white rounded-xl border border-[#E5E5E3] p-4 mb-6 flex justify-between items-center">
+            <div className={`bg-white rounded-xl border p-4 mb-6 flex justify-between items-center ${
+              insufficientBalance ? 'border-red-300' : 'border-[#E5E5E3]'
+            }`}>
               <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">보유 잔액</span>
-              <span className="text-sm font-bold text-primary">{balance.toLocaleString()}원</span>
+              <div className="text-right">
+                <span className={`text-sm font-bold ${insufficientBalance ? 'text-red-500' : 'text-primary'}`}>
+                  {balance.toLocaleString()}원
+                </span>
+                {insufficientBalance && (
+                  <p className="text-[10px] text-red-500 mt-0.5">잔액이 부족합니다</p>
+                )}
+              </div>
             </div>
           )}
 
