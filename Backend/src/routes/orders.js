@@ -2,7 +2,7 @@ const express = require('express')
 const { SweetbookClient } = require('../sdk/client')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
-const { createOrder, estimateOrder, getOrder, ServiceError } = require('../services/sweetbookService')
+const { createOrder, estimateOrder, getOrder, cancelOrder, ServiceError } = require('../services/sweetbookService')
 
 const router = express.Router()
 
@@ -155,6 +155,38 @@ router.get(
         return res.status(502).json({ success: false, error: err.code, message: err.message })
       }
       return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '주문 조회 중 오류가 발생했습니다.' })
+    }
+  })
+)
+
+/**
+ * @swagger
+ * /api/orders/{orderUid}/cancel:
+ *   post:
+ *     summary: 주문 취소
+ *     tags: [Orders]
+ *     parameters:
+ *       - in: path
+ *         name: orderUid
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 주문 취소 성공
+ */
+router.post(
+  '/:orderUid/cancel',
+  asyncHandler(async (req, res) => {
+    const { orderUid } = req.params
+    try {
+      const result = await cancelOrder(orderUid)
+      res.json({ success: true, data: result })
+    } catch (err) {
+      if (err instanceof ServiceError) {
+        return res.status(502).json({ success: false, error: err.code, message: err.message })
+      }
+      return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '주문 취소 중 오류가 발생했습니다.' })
     }
   })
 )

@@ -317,7 +317,33 @@ async function getOrder(orderUid) {
   }
 }
 
-// ── 7. 충전금 잔액 조회 ──────────────────────────────────────
+// ── 7. 주문 취소 ────────────────────────────────────────────
+/**
+ * @param {string} orderUid
+ * @returns {Promise<object>}
+ */
+async function cancelOrder(orderUid) {
+  const client = getClient()
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[cancelOrder] 주문 취소 요청:', orderUid)
+  }
+
+  try {
+    const result = await client.orders.cancel(orderUid)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[cancelOrder] 취소 완료:', JSON.stringify(result, null, 2))
+    }
+    return result
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[cancelOrder] 취소 실패:', err.message)
+    }
+    handleSweetbookError(err)
+  }
+}
+
+// ── 8. 충전금 잔액 조회 ──────────────────────────────────────
 /**
  * @returns {Promise<object>}
  */
@@ -339,5 +365,6 @@ module.exports = {
   estimateOrder,
   createOrder,
   getOrder,
+  cancelOrder,
   getCredits,
 }
