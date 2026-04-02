@@ -1,35 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
-
-const SAMPLE_DATA = {
-  name: '지호',
-  birthYear: '2022',
-  albumYear: '2025',
-  highlights: [
-    { month: 1, content: '처음으로 "엄마"라고 말했어요' },
-    { month: 2, content: '' },
-    { month: 3, content: '어린이집을 시작했어요' },
-    { month: 4, content: '' },
-    { month: 5, content: '자전거를 처음 탔어요' },
-    { month: 6, content: '' },
-    { month: 7, content: '바다에서 처음 수영했어요' },
-    { month: 8, content: '' },
-    { month: 9, content: '' },
-    { month: 10, content: '할로윈 파티에서 호박 분장을 했어요' },
-    { month: 11, content: '' },
-    { month: 12, content: '산타할아버지를 처음 만났어요' },
-  ],
-}
+import sampleStories from '../data/sampleStories'
 
 export default function InputForm() {
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
 
   const fillSample = () => {
-    dispatch({ type: 'SET_NAME', payload: SAMPLE_DATA.name })
-    dispatch({ type: 'SET_BIRTH_YEAR', payload: SAMPLE_DATA.birthYear })
-    dispatch({ type: 'SET_ALBUM_YEAR', payload: SAMPLE_DATA.albumYear })
-    dispatch({ type: 'SET_HIGHLIGHTS', payload: SAMPLE_DATA.highlights })
+    const sample = sampleStories[Math.floor(Math.random() * sampleStories.length)]
+    dispatch({ type: 'SET_NAME', payload: sample.name })
+    dispatch({ type: 'SET_BIRTH_YEAR', payload: sample.birthYear })
+    dispatch({ type: 'SET_ALBUM_YEAR', payload: sample.albumYear })
+    dispatch({ type: 'SET_HIGHLIGHTS', payload: sample.highlights })
   }
 
   const handleNext = () => {
