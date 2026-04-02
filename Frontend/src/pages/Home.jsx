@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { getOrder } from '../api/orderApi'
 import { signOut } from '../lib/supabase'
+import Footer from '../components/Footer'
 
 const ORDER_STATUS = {
   20: '결제 완료',
@@ -156,6 +157,8 @@ export default function Home() {
           ))}
         </div>
       </main>
+
+      <Footer />
 
       {/* Order Lookup Modal */}
       {showOrderModal && (

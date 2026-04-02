@@ -12,6 +12,8 @@ import Order from './pages/Order'
 import Complete from './pages/Complete'
 import ShippingManager from './pages/ShippingManager'
 import MyPage from './pages/MyPage'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 import AlbumView from './pages/AlbumView'
 
 export default function App() {
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="/complete" element={<Complete />} />
         <Route path="/shipping" element={<ShippingManager />} />
         <Route path="/mypage" element={<MyPage />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
       </Routes>
     </div>
   )

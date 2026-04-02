@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { signInWithGoogle } from '../lib/supabase'
 
 export default function Login() {
@@ -30,8 +31,12 @@ export default function Login() {
           <span>Google로 로그인</span>
         </button>
 
-        <p className="text-xs text-[#ACACAC] mt-6">
-          로그인하면 서비스 이용약관에 동의하게 됩니다
+        <p className="text-xs text-[#ACACAC] mt-6 leading-relaxed">
+          로그인하면{' '}
+          <Link to="/terms" className="text-primary hover:text-primary-dark underline">이용약관</Link>
+          과{' '}
+          <Link to="/privacy" className="text-primary hover:text-primary-dark underline">개인정보처리방침</Link>
+          에 동의하게 됩니다
         </p>
       </div>
     </div>
