@@ -19,6 +19,7 @@ const booksRouter = require('./routes/books')
 const templatesRouter = require('./routes/templates')
 const ordersRouter = require('./routes/orders')
 const creditsRouter = require('./routes/credits')
+const proxyRouter = require('./routes/proxy')
 
 const app = express()
 
@@ -46,6 +47,7 @@ app.use('/api/books', booksRouter)
 app.use('/api/templates', templatesRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/credits', creditsRouter)
+app.use('/api/proxy', proxyRouter)
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _next) => {
@@ -61,4 +63,5 @@ const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
   console.log(`[server] http://localhost:${PORT} 에서 실행 중`)
   console.log(`[docs]   http://localhost:${PORT}/api-docs`)
+  console.log('[sweetbook] baseUrl:', process.env.SWEETBOOK_BASE_URL)
 })

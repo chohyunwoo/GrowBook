@@ -65,7 +65,13 @@ router.get(
       return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '템플릿 조회 중 오류가 발생했습니다.' })
     }
 
-    res.json({ success: true, data: result?.data ?? result })
+    const templates = result?.data ?? result
+    if (Array.isArray(templates) && templates.length > 0) {
+      console.log('[templates] 첫 번째 템플릿:', JSON.stringify(templates[0], null, 2))
+      console.log('[templates] thumbnails 필드 존재 여부:', 'thumbnails' in templates[0])
+    }
+
+    res.json({ success: true, data: templates })
   })
 )
 

@@ -45,12 +45,16 @@ function handleSweetbookError(err) {
  */
 async function createBook({ title, subtitle, story, coverTemplateUid, contentTemplateUid, coverImageFileName, albumYear, highlights }) {
   const client = getClient()
+  const year = albumYear || new Date().getFullYear()
 
   // Step 1: 도서 생성 → bookUid 발급
   console.log('[Step 1] 시작 - books.create', { bookSpecUid: 'SQUAREBOOK_HC', title, creationType: 'TEST' })
+  console.log('[books.create URL]', process.env.SWEETBOOK_BASE_URL + '/v1/Books')
+  const createParams = { bookSpecUid: 'SQUAREBOOK_HC', title, creationType: 'TEST' }
+  console.log('[books.create 파라미터]', JSON.stringify(createParams, null, 2))
   let bookUid
   try {
-    const bookResult = await client.books.create({ bookSpecUid: 'SQUAREBOOK_HC', title, creationType: 'TEST' })
+    const bookResult = await client.books.create(createParams)
     bookUid = bookResult.bookUid
     console.log('[Step 1] 완료 → bookUid:', bookUid)
   } catch (err) {
@@ -67,7 +71,7 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
   if (coverTemplateUid === '4MY2fokVjkeY') {
     coverParams = {
       spineTitle: title,
-      dateRange: `${albumYear}.01 - ${albumYear}.12`,
+      dateRange: `${year}.01 - ${year}.12`,
       frontPhoto: 'https://picsum.photos/800/1050',
     }
   } else if (coverTemplateUid === '79yjMH3qRPly') {
@@ -110,12 +114,13 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
   }
 
   // Step 3: 전체 스토리 1페이지 삽입 (multipart/form-data, parameters는 SDK 내부에서 JSON 직렬화)
-  console.log('[Step 3] 시작 - contents.insert (전체 스토리)', { bookUid, templateUid: contentTemplateUid })
+  const storyTemplateUid = 'vHA59XPPKqak'
+  console.log('[Step 3] 시작 - contents.insert (전체 스토리)', { bookUid, templateUid: storyTemplateUid })
   try {
     await client.contents.insert(
       bookUid,
-      contentTemplateUid,
-      { date: `${albumYear}.01`, title, diaryText: story },
+      storyTemplateUid,
+      { date: `${year}.01 - ${year}.12`, title, diaryText: story },
       { breakBefore: 'page' }
     )
     console.log('[Step 3] 완료')
