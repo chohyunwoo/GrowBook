@@ -48,4 +48,22 @@ async function getOrders(userId) {
   return data
 }
 
-module.exports = { supabase, saveOrder, getOrders }
+/**
+ * 주문 상태를 업데이트합니다.
+ * @param {string} orderUid
+ * @param {number} status
+ * @returns {Promise<object>}
+ */
+async function updateOrderStatus(orderUid, status) {
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ status })
+    .eq('order_uid', orderUid)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+module.exports = { supabase, saveOrder, getOrders, updateOrderStatus }

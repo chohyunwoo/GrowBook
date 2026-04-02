@@ -3,7 +3,7 @@ const { SweetbookClient } = require('../sdk/client')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
 const { createOrder, estimateOrder, getOrder, cancelOrder, ServiceError } = require('../services/sweetbookService')
-const { supabase, saveOrder } = require('../services/supabaseService')
+const { supabase, saveOrder, updateOrderStatus } = require('../services/supabaseService')
 
 const router = express.Router()
 
@@ -113,6 +113,8 @@ router.post(
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '배송 필수 항목이 누락되었습니다. (recipientName, recipientPhone, postalCode, address1)' })
     }
 
+    console.log('[orders] req.body:', JSON.stringify(req.body))
+
     try {
       const result = await createOrder(bookUid, shipping)
 
@@ -201,6 +203,15 @@ router.post(
     const { orderUid } = req.params
     try {
       const result = await cancelOrder(orderUid)
+
+      // Supabase orders 테이블 status → 80 (CANCELLED)
+      try {
+        await updateOrderStatus(orderUid, 80)
+        console.log('[orders] Supabase 주문 상태 업데이트 완료:', orderUid, '→ 80')
+      } catch (updateErr) {
+        console.error('[orders] Supabase 주문 상태 업데이트 실패:', updateErr.message)
+      }
+
       res.json({ success: true, data: result })
     } catch (err) {
       if (err instanceof ServiceError) {
