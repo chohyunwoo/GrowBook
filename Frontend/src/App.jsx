@@ -12,6 +12,7 @@ import Order from './pages/Order'
 import Complete from './pages/Complete'
 import ShippingManager from './pages/ShippingManager'
 import MyPage from './pages/MyPage'
+import AlbumView from './pages/AlbumView'
 
 export default function App() {
   const { dispatch } = useApp()
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/input-form" element={<InputForm />} />
         <Route path="/loading" element={<Loading />} />
         <Route path="/preview" element={<Preview />} />
+        <Route path="/album-view" element={<AlbumView />} />
         <Route path="/order" element={<Order />} />
         <Route path="/complete" element={<Complete />} />
         <Route path="/shipping" element={<ShippingManager />} />

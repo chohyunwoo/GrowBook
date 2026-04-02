@@ -76,7 +76,7 @@ export default function Loading() {
       }
 
       // 완료 후 /order 이동
-      setTimeout(() => navigate('/order'), 500)
+      setTimeout(() => navigate('/album-view'), 500)
     } catch (err) {
       setSteps((prev) =>
         prev.map((s) =>
