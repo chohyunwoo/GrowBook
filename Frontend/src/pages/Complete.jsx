@@ -105,7 +105,7 @@ export default function Complete() {
           onClick={handleNewAlbum}
           className="w-full max-w-xs mx-auto bg-primary hover:bg-primary-dark text-white text-base font-medium py-4 px-8 rounded-xl transition-colors duration-200 cursor-pointer"
         >
-          새 앨범 만들기
+          홈으로 가기
         </button>
       </div>
     </div>

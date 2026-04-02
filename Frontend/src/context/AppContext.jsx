@@ -57,7 +57,7 @@ function appReducer(state, action) {
     case 'SET_ORDER_UID':
       return { ...state, orderUid: action.payload }
     case 'RESET':
-      return { ...initialState, highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '' })) }
+      return { ...initialState, type: state.type, highlights: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, content: '' })) }
     default:
       return state
   }
