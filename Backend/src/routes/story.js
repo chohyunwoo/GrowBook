@@ -85,6 +85,9 @@ router.post(
     if (!Array.isArray(highlights)) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '하이라이트는 배열이어야 합니다.' })
     }
+    if (!highlights.some((h) => h.content && h.content.trim() !== '')) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '특별한 순간을 최소 1개 이상 입력해주세요.' })
+    }
     if (type === 'travel') {
       highlights.forEach((h, i) => { if (!h.date) h.date = `Day ${i + 1}` })
     }

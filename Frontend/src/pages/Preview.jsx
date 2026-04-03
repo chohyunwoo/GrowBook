@@ -211,6 +211,11 @@ export default function Preview() {
           return
         }
       }
+      const visible = state.highlights.slice(0, innerPageCount)
+      if (!visible.some((h) => h.content && h.content.trim() !== '')) {
+        setGenerateError('특별한 순간을 최소 1개 이상 입력해주세요.')
+        return
+      }
     }
     setGenerating(true)
     setGenerateError(null)

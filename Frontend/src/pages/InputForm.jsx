@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
@@ -14,6 +14,21 @@ export default function InputForm() {
   const { state, dispatch } = useApp()
 
   const albumType = state.type || 'child'
+
+  // Parse existing period for travel/memory split fields
+  const parsePeriod = (value) => {
+    if (!value) return ['', '']
+    const parts = value.split('~').map((s) => s.trim())
+    if (parts.length === 2) return parts
+    const parts2 = value.split('-').map((s) => s.trim())
+    if (parts2.length >= 2) return [parts2[0], parts2[parts2.length - 1]]
+    return [value, '']
+  }
+  const [periodParts] = useState(() => parsePeriod(state.birthYear))
+  const [travelStart, setTravelStart] = useState(periodParts[0] || '')
+  const [travelEnd, setTravelEnd] = useState(periodParts[1] || '')
+  const [memoryStart, setMemoryStart] = useState(periodParts[0] || '')
+  const [memoryEnd, setMemoryEnd] = useState(periodParts[1] || '')
 
   // Initialize albumYear default
   useEffect(() => {
@@ -38,8 +53,19 @@ export default function InputForm() {
     })
   }
 
+  const [periodError, setPeriodError] = useState('')
+
   const handleNext = () => {
     if (!isValid) return
+    if (albumType === 'travel' && travelStart && travelEnd && travelStart > travelEnd) {
+      setPeriodError(t('inputForm.travelPeriodError'))
+      return
+    }
+    if (albumType === 'memory' && memoryStart && memoryEnd && Number(memoryStart) > Number(memoryEnd)) {
+      setPeriodError(t('inputForm.memoryPeriodError'))
+      return
+    }
+    setPeriodError('')
     navigate('/preview')
   }
 
@@ -115,8 +141,9 @@ export default function InputForm() {
                 <div>
                   <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.birthYear')}</label>
                   <input
-                    type="text"
-                    inputMode="numeric"
+                    type="number"
+                    min={1900}
+                    max={Number(CURRENT_YEAR)}
                     value={state.birthYear}
                     onChange={(e) => dispatch({ type: 'SET_BIRTH_YEAR', payload: e.target.value })}
                     placeholder={t('inputForm.birthYearPlaceholder')}
@@ -126,8 +153,9 @@ export default function InputForm() {
                 <div>
                   <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.albumYear')}</label>
                   <input
-                    type="text"
-                    inputMode="numeric"
+                    type="number"
+                    min={1900}
+                    max={Number(CURRENT_YEAR)}
                     value={state.albumYear}
                     onChange={(e) => dispatch({ type: 'SET_ALBUM_YEAR', payload: e.target.value })}
                     placeholder={t('inputForm.albumYearPlaceholder', { year: CURRENT_YEAR })}
@@ -139,30 +167,83 @@ export default function InputForm() {
 
             {/* travel: period */}
             {albumType === 'travel' && (
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.travelPeriod')}</label>
-                <input
-                  type="text"
-                  value={state.birthYear}
-                  onChange={(e) => dispatch({ type: 'SET_BIRTH_YEAR', payload: e.target.value })}
-                  placeholder={t('inputForm.travelPeriodPlaceholder')}
-                  className={INPUT_CLASS}
-                />
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.travelStart')}</label>
+                    <input
+                      type="month"
+                      value={travelStart}
+                      onChange={(e) => {
+                        setTravelStart(e.target.value)
+                        if (periodError) setPeriodError('')
+                        dispatch({ type: 'SET_BIRTH_YEAR', payload: `${e.target.value} ~ ${travelEnd}` })
+                      }}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.travelEnd')}</label>
+                    <input
+                      type="month"
+                      min={travelStart || undefined}
+                      value={travelEnd}
+                      onChange={(e) => {
+                        setTravelEnd(e.target.value)
+                        if (periodError) setPeriodError('')
+                        dispatch({ type: 'SET_BIRTH_YEAR', payload: `${travelStart} ~ ${e.target.value}` })
+                      }}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                </div>
+                {periodError && (
+                  <p className="text-xs text-red-500 mt-1.5">{periodError}</p>
+                )}
+              </>
             )}
 
             {/* memory: period */}
             {albumType === 'memory' && (
-              <div>
-                <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.memoryPeriod')}</label>
-                <input
-                  type="text"
-                  value={state.birthYear}
-                  onChange={(e) => dispatch({ type: 'SET_BIRTH_YEAR', payload: e.target.value })}
-                  placeholder={t('inputForm.memoryPeriodPlaceholder')}
-                  className={INPUT_CLASS}
-                />
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.memoryStart')}</label>
+                    <input
+                      type="number"
+                      min={1900}
+                      max={Number(CURRENT_YEAR)}
+                      value={memoryStart}
+                      onChange={(e) => {
+                        setMemoryStart(e.target.value)
+                        if (periodError) setPeriodError('')
+                        dispatch({ type: 'SET_BIRTH_YEAR', payload: `${e.target.value} ~ ${memoryEnd}` })
+                      }}
+                      placeholder="1990"
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.memoryEnd')}</label>
+                    <input
+                      type="number"
+                      min={memoryStart ? Number(memoryStart) : 1900}
+                      max={Number(CURRENT_YEAR)}
+                      value={memoryEnd}
+                      onChange={(e) => {
+                        setMemoryEnd(e.target.value)
+                        if (periodError) setPeriodError('')
+                        dispatch({ type: 'SET_BIRTH_YEAR', payload: `${memoryStart} ~ ${e.target.value}` })
+                      }}
+                      placeholder="2025"
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                </div>
+                {periodError && (
+                  <p className="text-xs text-red-500 mt-1.5">{periodError}</p>
+                )}
+              </>
             )}
           </div>
 
