@@ -43,11 +43,11 @@ export default function Loading() {
       if (state.type === 'travel') {
         highlights = state.highlights
           .filter((h) => h.content)
-          .map((h, i) => ({ date: `Day ${i + 1}`, content: h.content }))
+          .map((h, i) => ({ date: `Day ${i + 1}`, content: h.content, memo: h.memo || '' }))
       } else if (state.type === 'memory') {
         highlights = state.highlights
           .filter((h) => h.content)
-          .map((h, i) => ({ title: `Moment ${i + 1}`, content: h.content }))
+          .map((h, i) => ({ title: `Moment ${i + 1}`, content: h.content, memo: h.memo || '' }))
       } else {
         highlights = state.highlights
       }

@@ -25,7 +25,7 @@ export default function AlbumView() {
     pages.push({ type: 'story' })
   }
   state.highlights.forEach((h, i) => {
-    pages.push({ type: 'inner', index: i, month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
+    pages.push({ type: 'inner', index: i, month: h.month, content: h.content, caption: h.caption, memo: h.memo, imagePreview: h.imagePreview })
   })
 
   const totalPages = pages.length
@@ -120,14 +120,11 @@ export default function AlbumView() {
                     {/* Text */}
                     <div className="flex-1 p-5 flex flex-col justify-center">
                       <p className="text-lg font-bold text-primary mb-2">
-                        {t('preview.pageLabel', { index: page.index + 1 })}
+                        {page.memo}
                       </p>
                       <p className="text-sm text-[#4A4A4A] leading-relaxed">
                         {page.content || ''}
                       </p>
-                      {page.caption && (
-                        <p className="text-xs text-primary/80 italic mt-2 leading-relaxed">{page.caption}</p>
-                      )}
                     </div>
                   </div>
                 )}

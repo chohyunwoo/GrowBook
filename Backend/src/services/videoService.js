@@ -66,7 +66,7 @@ function buildBarSvg(canvasW, canvasH, lines, position) {
   for (const line of wrappedLines) {
     textY += line.fontSize
     const weight = line.bold ? 'bold' : 'normal'
-    content += `<text x="${canvasW / 2}" y="${textY}" text-anchor="middle" `
+    content += `<text x="40" y="${textY}" text-anchor="start" `
       + `font-family="Malgun Gothic, Gulim, sans-serif" `
       + `font-size="${line.fontSize}" font-weight="${weight}" fill="white">`
       + `${escapeXml(line.text)}</text>`
@@ -117,11 +117,17 @@ function buildOverlaySvg(index, textData, totalSlides) {
     return null
   }
 
-  // 내지 슬라이드 (images[1]~): captions[index] 하단
-  const caption = captions?.[index] || ''
-  if (!caption) return null
+  // 내지 슬라이드 (images[1]~): memo + content 하단
+  const raw = captions?.[index]
+  const memo = typeof raw === 'object' ? (raw?.memo || '') : ''
+  const content = typeof raw === 'object' ? (raw?.content || '') : (raw || '')
 
-  svgContent += buildBarSvg(width, height, [{ text: caption, fontSize: TEXT_FONT_SIZE, bold: false }], 'bottom')
+  if (!memo && !content) return null
+
+  const lines = []
+  if (memo) lines.push({ text: memo, fontSize: 24, bold: false })
+  if (content) lines.push({ text: content, fontSize: TEXT_FONT_SIZE, bold: false })
+  svgContent += buildBarSvg(width, height, lines, 'bottom')
 
   return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`)
 }
@@ -134,7 +140,9 @@ async function compositeTextOnImage(imgPath, index, textData, totalSlides) {
 
   console.log(`[videoService] 슬라이드 ${index}/${totalSlides - 1} 처리 시작 — captions[${index}] = "${textData.captions?.[index] || '(없음)'}"`)
 
+  const caption = textData.captions?.[index] || ''
   const overlaySvg = buildOverlaySvg(index, textData, totalSlides)
+  console.log(`[슬라이드 ${index}] caption: "${caption}", overlaySvg: ${!!overlaySvg}`)
   const tmpPath = imgPath.replace('.png', '_overlay.png')
 
   if (overlaySvg) {

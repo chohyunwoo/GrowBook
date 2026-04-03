@@ -27,6 +27,10 @@ export default function Preview() {
   const [subtitleDraft, setSubtitleDraft] = useState('')
   const [regeneratingStory, setRegeneratingStory] = useState(false)
 
+  // Page label editing
+  const [editingLabel, setEditingLabel] = useState(null) // month number being edited
+  const [labelDraft, setLabelDraft] = useState('')
+
   // Page slider
   const [currentPage, setCurrentPage] = useState(0)
 
@@ -126,7 +130,7 @@ export default function Preview() {
     // Inner pages
     const visibleCount = Math.min(innerPageCount, state.highlights.length)
     state.highlights.slice(0, visibleCount).forEach((h, i) => {
-      pages.push({ type: 'inner', index: i, month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
+      pages.push({ type: 'inner', index: i, month: h.month, content: h.content, caption: h.caption, memo: h.memo, imagePreview: h.imagePreview })
     })
     return pages
   }
@@ -156,7 +160,7 @@ export default function Preview() {
         type,
         name: state.name,
         period: state.birthYear,
-        highlights: visible.map((h, i) => ({ date: `Day ${i + 1}`, content: h.content || '' })),
+        highlights: visible.map((h, i) => ({ date: `Day ${i + 1}`, content: h.content || '', memo: h.memo || '' })),
       }
     }
     if (type === 'memory') {
@@ -164,7 +168,7 @@ export default function Preview() {
         type,
         name: state.name,
         period: state.birthYear,
-        highlights: visible.map((h, i) => ({ title: `${t('preview.momentLabel', { index: i + 1 })}`, content: h.content || '' })),
+        highlights: visible.map((h, i) => ({ title: `${t('preview.momentLabel', { index: i + 1 })}`, content: h.content || '', memo: h.memo || '' })),
       }
     }
     return {
@@ -172,7 +176,7 @@ export default function Preview() {
       name: state.name,
       birthYear: state.birthYear,
       albumYear: state.albumYear,
-      highlights: visible.map((h) => ({ month: h.month, content: h.content || '' })),
+      highlights: visible.map((h) => ({ month: h.month, content: h.content || '', memo: h.memo || '' })),
     }
   }
 
@@ -264,23 +268,33 @@ export default function Preview() {
           .filter((h) => h.imageFile)
           .map((h) => h.content || ''),
       ]
-      console.log('[커버]', !!state.coverImageFile)
-      console.log('[내지 사진 수]', state.highlights.filter((h) => h.imageFile).length)
-      console.log('[최종 images 수]', imageFiles.length)
-      console.log('[최종 captions 수]', captions.length)
+      const memos = [
+        ...(coverFile ? [''] : []),
+        ...state.highlights
+          .filter((h) => h.imageFile)
+          .map((h) => h.memo || ''),
+      ]
+      console.log('[highlights 전체 확인]', state.highlights
+        .filter((h) => h.imageFile)
+        .map((h) => ({ month: h.month, memo: h.memo, content: h.content, hasImage: !!h.imageFile }))
+      )
+      console.log('[최종 captions]', captions)
+      console.log('[최종 memos]', memos)
       console.log('POST /api/video/generate payload:', {
         images: imageFiles.map((f) => f.name),
-        title: story.title,
-        subtitle: story.subtitle,
+        title: story.title || '',
+        subtitle: story.subtitle || '',
         captions,
+        memos,
         story: story.story?.slice(0, 50) + '...',
         bgm: bgmFile?.name || null,
       })
       const res = await generateVideo(imageFiles, {
-        title: story.title,
-        subtitle: story.subtitle,
+        title: story.title || '',
+        subtitle: story.subtitle || '',
         captions,
-        story: story.story,
+        memos,
+        story: story.story || '',
         bgmFile,
       })
       const url = window.URL.createObjectURL(res.data)
@@ -458,9 +472,34 @@ export default function Preview() {
                     />
                     {/* Text content */}
                     <div className="flex-1 p-5 flex flex-col justify-center">
-                      <p className="text-lg font-bold text-primary mb-2">
-                        {t('preview.pageLabel', { index: page.index + 1 })}
-                      </p>
+                      {editingLabel === page.month ? (
+                        <input
+                          type="text"
+                          value={labelDraft}
+                          onChange={(e) => setLabelDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.target.blur()
+                          }}
+                          onBlur={() => {
+                            dispatch({ type: 'SET_HIGHLIGHT', payload: { month: page.month, memo: labelDraft.trim() } })
+                            setEditingLabel(null)
+                          }}
+                          className="text-lg font-bold text-primary mb-2 px-2 py-1 rounded-lg border border-primary focus:outline-none w-full"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="flex items-center gap-1.5 mb-2 px-2 py-1 -mx-2">
+                          <p className="text-lg font-bold text-primary">
+                            {page.memo}
+                          </p>
+                          <button
+                            onClick={() => { setEditingLabel(page.month); setLabelDraft(page.memo || '') }}
+                            className="flex items-center gap-1 text-xs text-primary font-medium cursor-pointer hover:text-primary-dark transition-colors duration-200"
+                          >
+                            <PencilIcon />
+                          </button>
+                        </div>
+                      )}
                       <textarea
                         value={page.content}
                         onChange={(e) => dispatch({ type: 'SET_HIGHLIGHT', payload: { month: page.month, content: e.target.value } })}
@@ -628,25 +667,32 @@ export default function Preview() {
             </div>
           </div>
 
-          {/* Video hint */}
-          <p className="text-sm text-blue-500 text-center mb-3">{t('preview.videoSettingsHint')}</p>
-
-          {/* Customize toggle */}
-          <button
-            onClick={() => setShowOptions(!showOptions)}
-            className="w-full flex items-center justify-between px-4 py-3 mb-4 rounded-xl bg-white border border-[#E5E5E3] text-sm text-[#6B6B6B] hover:text-[#1A1A1A] cursor-pointer transition-colors duration-200"
-          >
-            <span className="font-medium">{t('preview.advancedSettings')}</span>
-            <svg
-              className={`w-4 h-4 transition-transform duration-200 ${showOptions ? 'rotate-180' : ''}`}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
+          {/* Advanced settings hint */}
+          {hasStory ? (
+            <>
+              <p className="text-sm text-green-600 text-center mb-3">{t('preview.storyCompleteHint')}</p>
+              <button
+                onClick={() => setShowOptions(!showOptions)}
+                className="w-full flex items-center justify-between px-4 py-3 mb-4 rounded-xl bg-white border border-[#E5E5E3] text-sm text-[#6B6B6B] hover:text-[#1A1A1A] cursor-pointer transition-colors duration-200"
+              >
+                <span className="font-medium">{t('preview.advancedSettings')}</span>
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${showOptions ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-gray-400 text-center mb-4">{t('preview.storyFirstHint')}</p>
+          )}
 
           {showOptions && (
             <div className="space-y-3 mb-8">
+              {/* Memo hint */}
+              <p className="text-xs text-gray-400 leading-relaxed">{t('preview.memoVideoHint')}</p>
+
               {/* BGM Upload */}
               <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
                 <div className="flex items-center justify-between mb-2">

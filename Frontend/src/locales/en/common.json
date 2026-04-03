@@ -201,7 +201,8 @@
     "coverTemplateSelect": "Select Cover Template",
     "contentTemplateSelect": "Select Content Template",
     "noTemplates": "No templates available",
-"videoSettingsHint": "🎬 Want to create a slideshow video? Open Advanced Settings below",
+"storyCompleteHint": "✅ AI story generated! To create a slideshow video, open Advanced Settings below 🎬",
+    "storyFirstHint": "💡 Add photos and special moments, then generate the AI story first",
     "monthLabel": "{{month}}",
     "dayLabel": "Day {{index}}",
     "momentLabel": "Moment {{index}}",
@@ -213,6 +214,7 @@
     "videoGenerating": "Generating video...",
     "videoCaptioning": "Generating captions...",
     "videoNoImages": "No uploaded photos found",
+    "memoVideoHint": "💡 Page titles (edited via the ✏️ icon at the top of each page) are not included in the video",
     "bgmLabel": "Background Music (optional)",
     "bgmAdd": "Select audio file (mp3, wav)",
     "bgmCopyright": "You are responsible for the copyright of any music you upload"

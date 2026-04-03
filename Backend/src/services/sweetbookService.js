@@ -225,19 +225,19 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
       const highlight = highlights.find((h) => h.month === month)
       const content = highlight?.content?.trim() || '이달은 조용히 흘러갔어요.'
       console.log(`[Step 4] 시작 - (${month}월)`, { content, hasImage: !!highlight?.imageFile })
-      await insertContentPage(`${month}월`, { date: `${month}.01`, title: `${month}월`, diaryText: content }, highlight?.imageFile)
+      await insertContentPage(`${month}월`, { date: `${month}.01`, title: highlight?.memo || `${month}월`, diaryText: content }, highlight?.imageFile)
     }
   } else if (type === 'travel') {
     for (let i = 0; i < highlights.length; i++) {
       const h = highlights[i]
       console.log(`[Step 4] 시작 - (travel ${i + 1}/${highlights.length})`, { date: h.date, hasImage: !!h.imageFile })
-      await insertContentPage(`travel ${i + 1}`, { date: h.date, title: h.date, diaryText: h.content }, h.imageFile)
+      await insertContentPage(`travel ${i + 1}`, { date: h.date, title: h.memo || h.date, diaryText: h.content }, h.imageFile)
     }
   } else if (type === 'memory') {
     for (let i = 0; i < highlights.length; i++) {
       const h = highlights[i]
       console.log(`[Step 4] 시작 - (memory ${i + 1}/${highlights.length})`, { title: h.title, hasImage: !!h.imageFile })
-      await insertContentPage(`memory ${i + 1}`, { date: h.title, title: h.title, diaryText: h.content }, h.imageFile)
+      await insertContentPage(`memory ${i + 1}`, { date: h.title, title: h.memo || h.title, diaryText: h.content }, h.imageFile)
     }
   }
 
