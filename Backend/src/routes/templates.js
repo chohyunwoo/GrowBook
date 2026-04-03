@@ -66,11 +66,6 @@ router.get(
     }
 
     const templates = result?.data ?? result
-    if (Array.isArray(templates) && templates.length > 0) {
-      console.log('[templates] 첫 번째 템플릿:', JSON.stringify(templates[0], null, 2))
-      console.log('[templates] thumbnails 필드 존재 여부:', 'thumbnails' in templates[0])
-    }
-
     res.json({ success: true, data: templates })
   })
 )
@@ -99,7 +94,6 @@ router.get(
     }
 
     const template = result?.data ?? result
-    console.log('[template 상세]', JSON.stringify(template, null, 2))
     res.json({ success: true, data: template })
   })
 )

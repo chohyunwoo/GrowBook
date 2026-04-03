@@ -67,7 +67,6 @@ export default function Loading() {
 
       const highlightImages = state.highlights.map((h) => h.imageFile || null)
 
-      console.log('POST /api/books/create params:', bookData)
       const bookRes = await createBookWithImages(bookData, highlightImages, state.coverImageFile)
       const bookUid = bookRes.data?.data?.bookUid || bookRes.data?.bookUid || bookRes.data?.uid
       dispatch({ type: 'SET_BOOK_UID', payload: bookUid })

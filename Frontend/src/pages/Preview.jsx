@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { getTemplates } from '../api/templateApi'
 import { generateStory } from '../api/storyApi'
 import { generateVideo } from '../api/videoApi'
 
@@ -37,10 +36,6 @@ export default function Preview() {
   // Customize panel
   const [showOptions, setShowOptions] = useState(false)
 
-  // Template picker modal
-  const [templateModal, setTemplateModal] = useState(null) // 'cover' | 'content' | null
-  const [templateList, setTemplateList] = useState([])
-  const [templateLoading, setTemplateLoading] = useState(false)
 
   const story = state.generatedStory || {}
   const coverImage = state.coverImagePreview || DUMMY_COVER_IMAGE
@@ -221,7 +216,6 @@ export default function Preview() {
     setGenerateError(null)
     try {
       const payload = buildStoryPayload()
-      console.log('POST /api/story/generate payload:', payload)
       const res = await generateStory(payload)
       const result = res.data?.data || res.data
       dispatch({ type: 'SET_GENERATED_STORY', payload: result })
@@ -279,21 +273,6 @@ export default function Preview() {
           .filter((h) => h.imageFile)
           .map((h) => h.memo || ''),
       ]
-      console.log('[highlights 전체 확인]', state.highlights
-        .filter((h) => h.imageFile)
-        .map((h) => ({ month: h.month, memo: h.memo, content: h.content, hasImage: !!h.imageFile }))
-      )
-      console.log('[최종 captions]', captions)
-      console.log('[최종 memos]', memos)
-      console.log('POST /api/video/generate payload:', {
-        images: imageFiles.map((f) => f.name),
-        title: story.title || '',
-        subtitle: story.subtitle || '',
-        captions,
-        memos,
-        story: story.story?.slice(0, 50) + '...',
-        bgm: bgmFile?.name || null,
-      })
       const res = await generateVideo(imageFiles, {
         title: story.title || '',
         subtitle: story.subtitle || '',
@@ -317,35 +296,6 @@ export default function Preview() {
   }
 
   // Template modal
-  const openTemplatePicker = async (kind) => {
-    setTemplateModal(kind)
-    setTemplateLoading(true)
-    setTemplateList([])
-    try {
-      const res = await getTemplates(kind)
-      const d = res.data?.data
-      let list = []
-      if (Array.isArray(d)) list = d
-      else if (d && Array.isArray(d.templates)) list = d.templates
-      else if (Array.isArray(res.data)) list = res.data
-      setTemplateList(list)
-    } catch {
-      setTemplateList([])
-    }
-    setTemplateLoading(false)
-  }
-
-  const selectTemplate = (uid) => {
-    if (templateModal === 'cover') {
-      dispatch({ type: 'SET_COVER_TEMPLATE_UID', payload: uid })
-      console.log('표지 템플릿 변경:', uid)
-    } else {
-      dispatch({ type: 'SET_CONTENT_TEMPLATE_UID', payload: uid })
-      console.log('내지 템플릿 변경:', uid)
-    }
-    setTemplateModal(null)
-  }
-
   // Pencil icon SVG
   const PencilIcon = () => (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -826,74 +776,6 @@ export default function Preview() {
         </div>
       </main>
 
-      {/* Template Picker Modal */}
-      {templateModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
-          <div className="bg-white w-full max-w-md max-h-[80vh] rounded-t-2xl sm:rounded-2xl flex flex-col">
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E5E3]">
-              <h3 className="text-base font-semibold text-[#1A1A1A]">
-                {templateModal === 'cover' ? t('preview.coverTemplateSelect') : t('preview.contentTemplateSelect')}
-              </h3>
-              <button
-                onClick={() => setTemplateModal(null)}
-                className="w-8 h-8 rounded-full hover:bg-[#F0F0EE] flex items-center justify-center text-[#6B6B6B] cursor-pointer transition-colors duration-200"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal body */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {templateLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : templateList.length === 0 ? (
-                <p className="text-sm text-[#ACACAC] text-center py-12">{t('preview.noTemplates')}</p>
-              ) : (
-                <div className="space-y-2">
-                  {templateList.map((tmpl) => {
-                    const uid = tmpl.templateUid || tmpl.uid || tmpl.id
-                    const name = tmpl.templateName || tmpl.name || 'Template'
-                    const currentUid = templateModal === 'cover'
-                      ? state.selectedCoverTemplateUid
-                      : state.selectedContentTemplateUid
-                    const selected = currentUid === uid
-                    return (
-                      <button
-                        key={uid}
-                        onClick={() => selectTemplate(uid)}
-                        className={`w-full flex items-center justify-between p-4 rounded-xl border-2 text-left transition-all duration-200 cursor-pointer ${
-                          selected
-                            ? 'border-primary bg-primary/10'
-                            : 'border-[#E5E5E3] bg-white hover:border-[#D1D1CF]'
-                        }`}
-                      >
-                        <div>
-                          <p className={`text-sm font-semibold ${selected ? 'text-primary' : 'text-[#1A1A1A]'}`}>
-                            {name}
-                          </p>
-                          <p className="text-[10px] text-[#ACACAC] font-mono mt-0.5">{uid}</p>
-                        </div>
-                        {selected && (
-                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                            </svg>
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

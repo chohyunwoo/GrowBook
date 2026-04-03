@@ -68,7 +68,6 @@ export default function Order() {
   // Fetch estimate + credits on mount
   useEffect(() => {
     const fetch = async () => {
-      console.log('POST /api/orders/estimate bookUid:', state.bookUid)
       try {
         const [estRes, credRes] = await Promise.all([
           estimateOrder(state.bookUid),
@@ -115,7 +114,6 @@ export default function Order() {
 
   const handleOrder = async () => {
     const shipping = getShippingData()
-    console.log('주문 shipping 데이터:', shipping)
     if (!shipping) {
       setError(t('errors.enterShipping'))
       return

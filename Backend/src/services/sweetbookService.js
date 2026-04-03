@@ -2,7 +2,7 @@ const { File } = require('node:buffer')
 const { SweetbookClient } = require('../sdk/client')
 const { SweetbookApiError } = require('../sdk/core')
 const ERROR_CODE = require('../constants/errorCode')
-const axios = require('axios')
+
 
 // ── 서비스 전용 에러 ─────────────────────────────────────────
 class ServiceError extends Error {
@@ -49,49 +49,18 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
   const year = albumYear || new Date().getFullYear()
 
   // Step 1: 도서 생성 → bookUid 발급
-  console.log('[Step 1] 시작 - books.create', { bookSpecUid: 'SQUAREBOOK_HC', title, creationType: 'TEST' })
-  console.log('[books.create URL]', process.env.SWEETBOOK_BASE_URL + '/v1/Books')
   const createParams = { bookSpecUid: 'SQUAREBOOK_HC', title, creationType: 'TEST' }
-  console.log('[books.create 파라미터]', JSON.stringify(createParams, null, 2))
   let bookUid
   try {
     const bookResult = await client.books.create(createParams)
     bookUid = bookResult.bookUid
-    console.log('[Step 1] 완료 → bookUid:', bookUid)
   } catch (err) {
-    console.error('[Step 1] 실패 - books.create 에러')
-    console.error('  message:', err.message)
-    console.error('  statusCode:', err.statusCode)
-    console.error('  errorCode:', err.errorCode)
-    console.error('  details:', err.details)
     handleSweetbookError(err)
   }
-
-  // 임시: 빈 페이지 템플릿 단독 테스트
-  async function testBlankPage(testBookUid) {
-    try {
-      console.log('[빈 페이지 테스트] 시작')
-      const result = await client.contents.insert(testBookUid, '2mi1ao0Z4Vxl', {}, {})
-      console.log('[빈 페이지 테스트] 성공:', result)
-    } catch (err) {
-      console.error('[빈 페이지 테스트] 실패')
-      console.error('message:', err.message)
-      console.error('statusCode:', err.statusCode)
-      console.error('errorCode:', err.errorCode)
-      console.error('details:', JSON.stringify(err.details))
-      console.error('response:', JSON.stringify(err.response?.data))
-    }
-  }
-  await testBlankPage(bookUid)
 
   // Step 2: 표지 이미지 업로드 + 표지 추가
   let uploadedCoverFileName = coverImageFileName || null
   if (coverImageFile) {
-    console.log('[표지 이미지 업로드 시도]', {
-      filename: coverImageFile.originalname,
-      size: coverImageFile.size,
-      mimetype: coverImageFile.mimetype,
-    })
     try {
       const file = new File(
         [coverImageFile.buffer],
@@ -100,9 +69,7 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
       )
       const uploadResult = await client.photos.upload(bookUid, file)
       uploadedCoverFileName = uploadResult.fileName
-      console.log('[Step 2] 표지 이미지 업로드 완료:', uploadedCoverFileName)
     } catch (err) {
-      console.error('[Step 2] 표지 이미지 업로드 실패:', err.message)
       handleSweetbookError(err)
     }
   }
@@ -120,42 +87,15 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
   } else {
     coverParams = {}
   }
-  try {
-    const templateRes = await axios.get(
-      `${process.env.SWEETBOOK_BASE_URL}/v1/templates/${coverTemplateUid}`,
-      { headers: { Authorization: `Bearer ${process.env.SWEETBOOK_API_KEY}` } }
-    )
-    console.log('[템플릿 상세]', JSON.stringify(templateRes.data, null, 2))
-  } catch (err) {
-    console.error('[템플릿 상세] 조회 실패:', err.message)
-  }
 
-  console.log('[Step 2] 시작 - covers.create', { bookUid, templateUid: coverTemplateUid, coverParams })
   try {
     await client.covers.create(bookUid, coverTemplateUid, coverParams)
-    console.log('[Step 2] 완료')
   } catch (err) {
-    console.error('[Step 2] 실패 - covers.create 에러')
-    console.error('  message:', err.message)
-    console.error('  statusCode:', err.statusCode)
-    console.error('  errorCode:', err.errorCode)
-    console.error('  details:', err.details)
     handleSweetbookError(err)
   }
 
-  try {
-    const tplRes = await axios.get(
-      `${process.env.SWEETBOOK_BASE_URL}/v1/templates/vHA59XPPKqak`,
-      { headers: { Authorization: `Bearer ${process.env.SWEETBOOK_API_KEY}` } }
-    )
-    console.log('[내지 템플릿 상세]', JSON.stringify(tplRes.data.data.parameters, null, 2))
-  } catch (err) {
-    console.error('[내지 템플릿 상세] 조회 실패:', err.message)
-  }
-
-  // Step 3: 전체 스토리 1페이지 삽입 (multipart/form-data, parameters는 SDK 내부에서 JSON 직렬화)
+  // Step 3: 전체 스토리 1페이지 삽입
   const storyTemplateUid = 'vHA59XPPKqak'
-  console.log('[Step 3] 시작 - contents.insert (전체 스토리)', { bookUid, templateUid: storyTemplateUid })
   try {
     await client.contents.insert(
       bookUid,
@@ -163,13 +103,7 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
       { date: `${year}.01 - ${year}.12`, title, diaryText: story },
       { breakBefore: 'page' }
     )
-    console.log('[Step 3] 완료')
   } catch (err) {
-    console.error('[Step 3] 실패 - contents.insert (전체 스토리) 에러')
-    console.error('  message:', err.message)
-    console.error('  statusCode:', err.statusCode)
-    console.error('  errorCode:', err.errorCode)
-    console.error('  details:', err.details)
     handleSweetbookError(err)
   }
 
@@ -178,17 +112,11 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
   const TEXT_TEMPLATE_UID = contentTemplateUid  // 텍스트 전용 템플릿
   let contentPageCount = 0
 
-  // 하이라이트 이미지 업로드 + 내지 삽입 헬퍼
   async function insertContentPage(label, params, imageFile) {
     let templateUid = TEXT_TEMPLATE_UID
     let contentParams = { ...params }
 
     if (imageFile) {
-      console.log(`[Step 4] ${label} 이미지 업로드 시도:`, {
-        filename: imageFile.originalname,
-        size: imageFile.size,
-        mimetype: imageFile.mimetype,
-      })
       try {
         const file = new File(
           [imageFile.buffer],
@@ -198,45 +126,33 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
         const photo = await client.photos.upload(bookUid, file)
         contentParams.photo1 = photo.fileName
         templateUid = PHOTO_TEMPLATE_UID
-        console.log(`[Step 4] ${label} 이미지 업로드 완료:`, photo.fileName)
       } catch (err) {
-        console.error(`[Step 4] ${label} 이미지 업로드 실패:`, err.message)
         // 이미지 업로드 실패 시 텍스트 전용 템플릿으로 fallback
       }
     }
 
     try {
       await client.contents.insert(bookUid, templateUid, contentParams, { breakBefore: 'page' })
-      console.log(`[Step 4] 완료 - ${label}`)
       contentPageCount++
     } catch (err) {
-      console.error(`[Step 4] 실패 - ${label}`)
-      console.error('  message:', err.message)
-      console.error('  statusCode:', err.statusCode)
-      console.error('  errorCode:', err.errorCode)
-      console.error('  details:', err.details)
       handleSweetbookError(err)
     }
   }
 
   if (type === 'child' || type === 'pet') {
-    // child/pet: 1~12월 반복
     for (let month = 1; month <= 12; month++) {
       const highlight = highlights.find((h) => h.month === month)
       const content = highlight?.content?.trim() || '이달은 조용히 흘러갔어요.'
-      console.log(`[Step 4] 시작 - (${month}월)`, { content, hasImage: !!highlight?.imageFile })
       await insertContentPage(`${month}월`, { date: `${month}.01`, title: highlight?.memo || `${month}월`, diaryText: content }, highlight?.imageFile)
     }
   } else if (type === 'travel') {
     for (let i = 0; i < highlights.length; i++) {
       const h = highlights[i]
-      console.log(`[Step 4] 시작 - (travel ${i + 1}/${highlights.length})`, { date: h.date, hasImage: !!h.imageFile })
       await insertContentPage(`travel ${i + 1}`, { date: h.date, title: h.memo || h.date, diaryText: h.content }, h.imageFile)
     }
   } else if (type === 'memory') {
     for (let i = 0; i < highlights.length; i++) {
       const h = highlights[i]
-      console.log(`[Step 4] 시작 - (memory ${i + 1}/${highlights.length})`, { title: h.title, hasImage: !!h.imageFile })
       await insertContentPage(`memory ${i + 1}`, { date: h.title, title: h.memo || h.title, diaryText: h.content }, h.imageFile)
     }
   }
@@ -250,44 +166,18 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
     totalNeeded = totalNeeded + (4 - totalNeeded % 4)
   }
   const blankPages = totalNeeded - usedPages
-  console.log('[페이지 계산]', { usedPages, totalNeeded, blankPages })
   for (let i = 1; i <= blankPages; i++) {
     try {
-      const result = await client.contents.insert(bookUid, BLANK_TEMPLATE_UID, {}, { breakBefore: 'page' })
-      console.log(`[Step 5] 빈 페이지 ${i}/${blankPages} 추가 완료 — pageNum: ${result?.pageNum}, pageSide: ${result?.pageSide}`, JSON.stringify(result))
+      await client.contents.insert(bookUid, BLANK_TEMPLATE_UID, {}, { breakBefore: 'page' })
     } catch (err) {
-      console.error(`[Step 5] 빈 페이지 ${i}/${blankPages} 삽입 실패:`, {
-        message: err.message,
-        statusCode: err.statusCode,
-        errorCode: err.errorCode,
-        details: JSON.stringify(err.details),
-      })
       handleSweetbookError(err)
     }
   }
 
-  try {
-    const specRes = await axios.get(
-      `${process.env.SWEETBOOK_BASE_URL}/v1/book-specs/SQUAREBOOK_HC`,
-      { headers: { Authorization: `Bearer ${process.env.SWEETBOOK_API_KEY}` } }
-    )
-    console.log('[BookSpec]', JSON.stringify(specRes.data.data, null, 2))
-  } catch (err) {
-    console.error('[BookSpec] 조회 실패:', err.message)
-  }
-
   // Step 6: 도서 최종화
-  console.log('[Step 6] 시작 - books.finalize', { bookUid })
   try {
-    const finalizeResult = await client.books.finalize(bookUid)
-    console.log('[finalize 성공]', JSON.stringify(finalizeResult, null, 2))
-    console.log('[Step 6] 완료 → 도서 생성 성공')
+    await client.books.finalize(bookUid)
   } catch (err) {
-    console.error('[Step 6] 실패 - books.finalize 에러')
-    console.error('  message:', err.message)
-    console.error('  statusCode:', err.statusCode)
-    console.error('  errorCode:', err.errorCode)
-    console.error('  details:', err.details)
     handleSweetbookError(err)
   }
 
@@ -379,10 +269,8 @@ async function createOrder(bookUid, shipping) {
 
   try {
     const result = await client.orders.create({ items: [{ bookUid, quantity: 1 }], shipping })
-    console.log('[createOrder 성공]', JSON.stringify(result, null, 2))
     return result
   } catch (err) {
-    console.error('[createOrder 에러]', JSON.stringify(err.details, null, 2))
     if (err instanceof SweetbookApiError && err.statusCode === 402) {
       throw new ServiceError(
         ERROR_CODE.INSUFFICIENT_CREDIT,
@@ -417,20 +305,9 @@ async function getOrder(orderUid) {
 async function cancelOrder(orderUid) {
   const client = getClient()
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[cancelOrder] 주문 취소 요청:', orderUid)
-  }
-
   try {
-    const result = await client.orders.cancel(orderUid, '고객 요청으로 인한 취소')
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[cancelOrder] 취소 완료:', JSON.stringify(result, null, 2))
-    }
-    return result
+    return await client.orders.cancel(orderUid, '고객 요청으로 인한 취소')
   } catch (err) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[cancelOrder] 취소 실패:', err.message)
-    }
     handleSweetbookError(err)
   }
 }

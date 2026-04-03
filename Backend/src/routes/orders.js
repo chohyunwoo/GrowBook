@@ -113,8 +113,6 @@ router.post(
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '배송 필수 항목이 누락되었습니다. (recipientName, recipientPhone, postalCode, address1)' })
     }
 
-    console.log('[orders] req.body:', JSON.stringify(req.body))
-
     try {
       const result = await createOrder(bookUid, shipping)
 

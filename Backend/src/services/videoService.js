@@ -137,33 +137,21 @@ function buildOverlaySvg(index, textData, totalSlides) {
  */
 async function compositeTextOnImage(imgPath, index, textData, totalSlides) {
   const { width, height } = RESOLUTION
-
-  console.log(`[videoService] 슬라이드 ${index}/${totalSlides - 1} 처리 시작 — captions[${index}] = "${textData.captions?.[index] || '(없음)'}"`)
-
-  const caption = textData.captions?.[index] || ''
   const overlaySvg = buildOverlaySvg(index, textData, totalSlides)
-  console.log(`[슬라이드 ${index}] caption: "${caption}", overlaySvg: ${!!overlaySvg}`)
   const tmpPath = imgPath.replace('.png', '_overlay.png')
 
   if (overlaySvg) {
-    console.log(`[videoService] 슬라이드 ${index}: 텍스트 있음 — SVG 합성`)
-    console.log(`[videoService] 슬라이드 ${index} SVG 내용:\n${overlaySvg.toString()}`)
-
     await sharp(imgPath)
       .resize(width, height, { fit: 'cover', position: 'center' })
       .composite([{ input: overlaySvg, top: 0, left: 0 }])
       .png()
       .toFile(tmpPath)
   } else {
-    console.log(`[videoService] 슬라이드 ${index}: 텍스트 없음 — 리사이즈만 수행`)
-
     await sharp(imgPath)
       .resize(width, height, { fit: 'cover', position: 'center' })
       .png()
       .toFile(tmpPath)
   }
-
-  console.log(`[videoService] 슬라이드 ${index}: 처리 완��� — ${tmpPath}`)
 
   fs.unlinkSync(imgPath)
   fs.renameSync(tmpPath, imgPath)
@@ -188,12 +176,10 @@ async function generateSlideshow(imageBuffers, bgmBuffer, bgmExt = '.mp3', textD
     imagePaths.push(imgPath)
   }
 
-  // sharp + SVG로 텍스트 오버레이 합성
   if (textData) {
     for (let i = 0; i < imagePaths.length; i++) {
       await compositeTextOnImage(imagePaths[i], i, textData, imagePaths.length)
     }
-    console.log(`[videoService] ${imagePaths.length}장 텍스트 오버레이 합성 완료`)
   }
 
   let bgmPath = null
