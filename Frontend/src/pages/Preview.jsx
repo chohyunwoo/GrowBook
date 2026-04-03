@@ -44,13 +44,16 @@ export default function Preview() {
     : t('preview.titlePreview')
   const dateRange = state.albumYear ? `${state.albumYear}.01 - ${state.albumYear}.12` : ''
 
-  // Set defaults on mount
+  // Set defaults on mount & auto-generate story
   useEffect(() => {
     if (!state.selectedCoverTemplateUid) {
       dispatch({ type: 'SET_COVER_TEMPLATE_UID', payload: DEFAULT_COVER_TEMPLATE })
     }
     if (!state.selectedContentTemplateUid) {
       dispatch({ type: 'SET_CONTENT_TEMPLATE_UID', payload: DEFAULT_CONTENT_TEMPLATE })
+    }
+    if (!state.generatedStory) {
+      handleGenerate()
     }
   }, [])
 
@@ -637,33 +640,24 @@ export default function Preview() {
             {t('preview.pageHint')}
           </p>
 
-          {!hasStory ? (
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className={`w-full text-white text-base font-medium py-4 rounded-xl transition-colors duration-200 ${
-                generating
-                  ? 'bg-[#D1D1CF] cursor-not-allowed'
-                  : 'bg-primary hover:bg-primary-dark cursor-pointer'
-              }`}
-            >
-              {generating ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {t('preview.generatingStory')}
-                </span>
-              ) : (
-                t('preview.generatePreview')
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate('/loading')}
-              className="w-full text-white text-base font-medium py-4 rounded-xl bg-primary hover:bg-primary-dark cursor-pointer transition-colors duration-200"
-            >
-              {t('preview.makeBook')}
-            </button>
-          )}
+          <button
+            onClick={() => hasStory ? navigate('/loading') : handleGenerate()}
+            disabled={generating}
+            className={`w-full text-white text-base font-medium py-4 rounded-xl transition-colors duration-200 ${
+              generating
+                ? 'bg-[#D1D1CF] cursor-not-allowed'
+                : 'bg-primary hover:bg-primary-dark cursor-pointer'
+            }`}
+          >
+            {generating ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                {t('preview.generatingStory')}
+              </span>
+            ) : (
+              t('preview.makeBook')
+            )}
+          </button>
         </div>
       </main>
 
