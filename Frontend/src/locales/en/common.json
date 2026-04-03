@@ -123,6 +123,7 @@
     "birthYear": "Birth Year",
     "albumYear": "Photobook Year",
     "birthYearPlaceholder": "e.g. 2022",
+    "yearError": "Please enter a valid year (e.g. 2022)",
     "albumYearPlaceholder": "e.g. {{year}}",
     "travelPeriod": "Travel Period",
     "travelPeriodPlaceholder": "e.g. 2025.03.15 ~ 2025.03.18",

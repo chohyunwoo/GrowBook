@@ -123,6 +123,7 @@
     "birthYear": "태어난 연도",
     "albumYear": "포토북 연도",
     "birthYearPlaceholder": "예: 2022",
+    "yearError": "올바른 연도를 입력해주세요 (예: 2022)",
     "albumYearPlaceholder": "예: {{year}}",
     "travelPeriod": "여행 기간",
     "travelPeriodPlaceholder": "예: 2025.03.15 ~ 2025.03.18",

@@ -40,7 +40,18 @@ export default function InputForm() {
   const fillSample = () => {
     const sample = getSample(albumType, i18n.language)
     dispatch({ type: 'SET_NAME', payload: sample.name })
-    dispatch({ type: 'SET_BIRTH_YEAR', payload: sample.birthYear })
+    if (sample.startPeriod !== undefined) {
+      dispatch({ type: 'SET_BIRTH_YEAR', payload: `${sample.startPeriod} ~ ${sample.endPeriod}` })
+      if (albumType === 'travel') {
+        setTravelStart(sample.startPeriod)
+        setTravelEnd(sample.endPeriod)
+      } else if (albumType === 'memory') {
+        setMemoryStart(sample.startPeriod)
+        setMemoryEnd(sample.endPeriod)
+      }
+    } else {
+      dispatch({ type: 'SET_BIRTH_YEAR', payload: sample.birthYear })
+    }
     dispatch({ type: 'SET_ALBUM_YEAR', payload: sample.albumYear })
   }
 
@@ -54,9 +65,25 @@ export default function InputForm() {
   }
 
   const [periodError, setPeriodError] = useState('')
+  const [yearError, setYearError] = useState('')
+
+  const isValidYear = (v) => /^\d{4}$/.test(v) && Number(v) >= 1900 && Number(v) <= Number(CURRENT_YEAR)
+
+  const handleYearKeyDown = (e) => {
+    const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End']
+    if (allowed.includes(e.key) || (e.key >= '0' && e.key <= '9')) return
+    e.preventDefault()
+  }
 
   const handleNext = () => {
     if (!isValid) return
+    if (albumType === 'child' || albumType === 'pet') {
+      if (!isValidYear(state.birthYear) || !isValidYear(state.albumYear)) {
+        setYearError(t('inputForm.yearError'))
+        return
+      }
+      setYearError('')
+    }
     if (albumType === 'travel' && travelStart && travelEnd && travelStart > travelEnd) {
       setPeriodError(t('inputForm.travelPeriodError'))
       return
@@ -137,32 +164,45 @@ export default function InputForm() {
 
             {/* child / pet: birthYear + albumYear */}
             {(albumType === 'child' || albumType === 'pet') && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.birthYear')}</label>
-                  <input
-                    type="number"
-                    min={1900}
-                    max={Number(CURRENT_YEAR)}
-                    value={state.birthYear}
-                    onChange={(e) => dispatch({ type: 'SET_BIRTH_YEAR', payload: e.target.value })}
-                    placeholder={t('inputForm.birthYearPlaceholder')}
-                    className={INPUT_CLASS}
-                  />
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.birthYear')}</label>
+                    <input
+                      type="number"
+                      min={1900}
+                      max={Number(CURRENT_YEAR)}
+                      value={state.birthYear}
+                      onKeyDown={handleYearKeyDown}
+                      onChange={(e) => {
+                        if (yearError) setYearError('')
+                        dispatch({ type: 'SET_BIRTH_YEAR', payload: e.target.value })
+                      }}
+                      placeholder={t('inputForm.birthYearPlaceholder')}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.albumYear')}</label>
+                    <input
+                      type="number"
+                      min={1900}
+                      max={Number(CURRENT_YEAR)}
+                      value={state.albumYear}
+                      onKeyDown={handleYearKeyDown}
+                      onChange={(e) => {
+                        if (yearError) setYearError('')
+                        dispatch({ type: 'SET_ALBUM_YEAR', payload: e.target.value })
+                      }}
+                      placeholder={t('inputForm.albumYearPlaceholder', { year: CURRENT_YEAR })}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{t('inputForm.albumYear')}</label>
-                  <input
-                    type="number"
-                    min={1900}
-                    max={Number(CURRENT_YEAR)}
-                    value={state.albumYear}
-                    onChange={(e) => dispatch({ type: 'SET_ALBUM_YEAR', payload: e.target.value })}
-                    placeholder={t('inputForm.albumYearPlaceholder', { year: CURRENT_YEAR })}
-                    className={INPUT_CLASS}
-                  />
-                </div>
-              </div>
+                {yearError && (
+                  <p className="text-xs text-red-500 mt-1.5">{yearError}</p>
+                )}
+              </>
             )}
 
             {/* travel: period */}
