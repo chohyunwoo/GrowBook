@@ -193,7 +193,7 @@ npm run dev
 브라우저에서 접속: **http://localhost:5173**
 
 실행 성공 시 (백엔드):
- 환경변수 확인 완료
+환경변수 확인 완료
 서버가 3001번 포트에서 실행 중입니다
 📄 API 문서: http://localhost:3001/api-docs
 ---
@@ -215,13 +215,13 @@ npm run dev
 
 ## 샘플 체험
 
-로그인 없이 샘플 데이터로 서비스를 체험할 수 있습니다.
-
 정보 입력 페이지에서 **"샘플로 체험하기"** 버튼을 클릭하면
 더미 데이터가 자동으로 입력됩니다.
 
-더미 데이터 위치: `dummy-data/child-stories.json`
+> ⚠️ 서비스 이용을 위해 구글 로그인이 필요합니다.
+> Supabase Google OAuth 설정이 완료되어야 로그인이 가능합니다.
 
+더미 데이터 위치: `dummy-data/child-stories.json`
 ---
 
 ## 주문 상태 코드
@@ -238,16 +238,17 @@ npm run dev
 
 ## Supabase 설정
 
-## Supabase 설정
-
 1. [supabase.com](https://supabase.com)에서 새 프로젝트 생성
+
 2. Google OAuth 활성화
    - Authentication → Providers → Google 클릭
-   - Google Cloud Console에서 OAuth 클라이언트 ID 발급
-   - Client ID, Client Secret 입력 후 저장
-   - Redirect URL을 Google Cloud Console에 등록
-3. 아래 SQL로 orders 테이블 생성
-...
+   - [Google Cloud Console](https://console.cloud.google.com)에서 OAuth 2.0 클라이언트 ID 발급
+     - APIs & Services → Credentials → Create Credentials → OAuth Client ID
+     - Application Type: Web Application
+     - Authorized redirect URIs에 Supabase Callback URL 추가:
+       `https://<your-project-ref>.supabase.co/auth/v1/callback`
+   - Supabase Google Provider에 Client ID, Client Secret 입력 후 저장
+
 3. 아래 SQL로 orders 테이블 생성:
 ```sql
 create table orders (
@@ -274,8 +275,6 @@ create policy "Users can update own orders"
   on orders for update
   using (auth.uid() = user_id);
 ```
-
----
 
 ## 개발 환경
 
