@@ -2,7 +2,7 @@ const express = require('express')
 const rateLimit = require('express-rate-limit')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
-const { generateStory, generateCaption } = require('../services/claudeService')
+const { generateStory } = require('../services/claudeService')
 
 const router = express.Router()
 
@@ -82,14 +82,14 @@ router.post(
     if ((type === 'travel' || type === 'memory') && (!period || typeof period !== 'string' || period.trim().length === 0)) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'period(기간)는 필수입니다.' })
     }
-    if (!Array.isArray(highlights) || highlights.length === 0) {
-      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '하이라이트는 1개 이상이어야 합니다.' })
+    if (!Array.isArray(highlights)) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '하이라이트는 배열이어야 합니다.' })
     }
-    if (type === 'travel' && highlights.some((h) => !h.date || !h.content)) {
-      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'travel 하이라이트는 date, content가 필수입니다.' })
+    if (type === 'travel') {
+      highlights.forEach((h, i) => { if (!h.date) h.date = `Day ${i + 1}` })
     }
-    if (type === 'memory' && highlights.some((h) => !h.title || !h.content)) {
-      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'memory 하이라이트는 title, content가 필수입니다.' })
+    if (type === 'memory') {
+      highlights.forEach((h, i) => { if (!h.title) h.title = `순간 ${i + 1}` })
     }
 
     try {
@@ -98,50 +98,6 @@ router.post(
     } catch (err) {
       const code = err.code === ERROR_CODE.CLAUDE_API_ERROR ? ERROR_CODE.CLAUDE_API_ERROR : ERROR_CODE.CLAUDE_API_ERROR
       return res.status(502).json({ success: false, error: code, message: err.message })
-    }
-  })
-)
-
-/**
- * @swagger
- * /api/story/caption:
- *   post:
- *     summary: 하이라이트 텍스트를 감성 캡션으로 변환
- *     tags: [Story]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [highlight]
- *             properties:
- *               highlight:
- *                 type: string
- *                 example: 첫 걸음마를 떼었어요
- *               type:
- *                 type: string
- *                 example: child
- *     responses:
- *       200:
- *         description: 캡션 생성 성공
- */
-router.post(
-  '/caption',
-  storyLimiter,
-  asyncHandler(async (req, res) => {
-    const { highlight, type } = req.body
-    const highlightText = typeof highlight === 'object' ? highlight?.content : highlight
-
-    if (!highlightText || typeof highlightText !== 'string' || highlightText.trim().length === 0) {
-      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'highlight 텍스트가 필요합니다.' })
-    }
-
-    try {
-      const data = await generateCaption(highlightText.trim(), type)
-      res.json({ success: true, data })
-    } catch (err) {
-      return res.status(502).json({ success: false, error: err.code || ERROR_CODE.CLAUDE_API_ERROR, message: err.message })
     }
   })
 )

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { getTemplates } from '../api/templateApi'
-import { generateStory, generateCaption } from '../api/storyApi'
+import { generateStory } from '../api/storyApi'
+import { generateVideo } from '../api/videoApi'
 
 const DEFAULT_COVER_TEMPLATE = '4MY2fokVjkeY'
 const DEFAULT_CONTENT_TEMPLATE = 'vHA59XPPKqak'
@@ -44,7 +45,7 @@ export default function Preview() {
     : t('preview.titlePreview')
   const dateRange = state.albumYear ? `${state.albumYear}.01 - ${state.albumYear}.12` : ''
 
-  // Set defaults on mount & auto-generate story
+  // Set defaults on mount & ensure minimum 22 inner pages (+ cover + story = 24 total)
   useEffect(() => {
     if (!state.selectedCoverTemplateUid) {
       dispatch({ type: 'SET_COVER_TEMPLATE_UID', payload: DEFAULT_COVER_TEMPLATE })
@@ -52,8 +53,12 @@ export default function Preview() {
     if (!state.selectedContentTemplateUid) {
       dispatch({ type: 'SET_CONTENT_TEMPLATE_UID', payload: DEFAULT_CONTENT_TEMPLATE })
     }
-    if (!state.generatedStory) {
-      handleGenerate()
+    if (state.highlights.length < 22) {
+      const expanded = [...state.highlights]
+      for (let i = state.highlights.length + 1; i <= 22; i++) {
+        expanded.push({ month: i, content: '', memo: '', caption: '', imageFile: null, imagePreview: null })
+      }
+      dispatch({ type: 'SET_HIGHLIGHTS', payload: expanded })
     }
   }, [])
 
@@ -83,6 +88,7 @@ export default function Preview() {
     const file = e.target.files?.[0]
     if (!file) return
     if (!ACCEPTED_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE) return
+    if (generateError) setGenerateError(null)
     const reader = new FileReader()
     reader.onload = (ev) => {
       dispatch({ type: 'SET_HIGHLIGHT', payload: { month, imageFile: file, imagePreview: ev.target.result } })
@@ -95,48 +101,45 @@ export default function Preview() {
     dispatch({ type: 'SET_HIGHLIGHT', payload: { month, imageFile: null, imagePreview: null } })
   }
 
-  // Caption generation
-  const [captionLoading, setCaptionLoading] = useState(null) // month number being generated
-
-  const handleGenerateCaption = async (month) => {
-    const h = state.highlights.find((item) => item.month === month)
-    if (!h || !h.content) return
-    setCaptionLoading(month)
-    try {
-      const res = await generateCaption(h.content, state.type || 'child')
-      const caption = res.data?.data?.caption || res.data?.caption || ''
-      dispatch({ type: 'SET_HIGHLIGHT', payload: { month, caption } })
-    } catch { /* ignore */ }
-    setCaptionLoading(null)
-  }
+  // Video generation
+  const [videoGenerating, setVideoGenerating] = useState(false)
+  const [videoError, setVideoError] = useState(null)
+  const [bgmFile, setBgmFile] = useState(null)
+  const bgmInputRef = useRef(null)
 
   const hasStory = !!state.generatedStory
+
+  // Inner page count (at least 22)
+  const [innerPageCount, setInnerPageCount] = useState(() => {
+    return Math.max(state.highlights.length, 22)
+  })
 
   // Build pages for slider
   const buildPages = () => {
     const pages = []
-    // Page 0: Cover
+    // Page 0: Cover (1p)
     pages.push({ type: 'cover' })
-    // Page 1: Story (if generated)
+    // Page 1: Story (1p)
     if (hasStory) {
       pages.push({ type: 'story' })
     }
     // Inner pages
-    const albumType = state.type || 'child'
-    if (albumType === 'child' || albumType === 'pet') {
-      state.highlights.forEach((h) => {
-        pages.push({ type: 'month', month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
-      })
-    } else if (albumType === 'travel') {
-      state.highlights.filter((h) => h.content).forEach((h, i) => {
-        pages.push({ type: 'travel', index: i, month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
-      })
-    } else if (albumType === 'memory') {
-      state.highlights.filter((h) => h.content).forEach((h, i) => {
-        pages.push({ type: 'memory', index: i, month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
-      })
-    }
+    const visibleCount = Math.min(innerPageCount, state.highlights.length)
+    state.highlights.slice(0, visibleCount).forEach((h, i) => {
+      pages.push({ type: 'inner', index: i, month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
+    })
     return pages
+  }
+
+  // Add new page
+  const handleAddPage = () => {
+    const next = innerPageCount + 1
+    if (next > state.highlights.length) {
+      const expanded = [...state.highlights, { month: next, content: '', memo: '', caption: '', imageFile: null, imagePreview: null }]
+      dispatch({ type: 'SET_HIGHLIGHTS', payload: expanded })
+    }
+    setInnerPageCount(next)
+    setCurrentPage(pages.length)
   }
 
   const pages = buildPages()
@@ -147,14 +150,13 @@ export default function Preview() {
   // Build story payload by type
   const buildStoryPayload = () => {
     const type = state.type || 'child'
+    const visible = state.highlights.slice(0, innerPageCount)
     if (type === 'travel') {
       return {
         type,
         name: state.name,
         period: state.birthYear,
-        highlights: state.highlights
-          .filter((h) => h.content)
-          .map((h, i) => ({ date: h.date || `Day ${i + 1}`, content: h.content })),
+        highlights: visible.map((h, i) => ({ date: `Day ${i + 1}`, content: h.content || '' })),
       }
     }
     if (type === 'memory') {
@@ -162,9 +164,7 @@ export default function Preview() {
         type,
         name: state.name,
         period: state.birthYear,
-        highlights: state.highlights
-          .filter((h) => h.content)
-          .map((h, i) => ({ title: h.title || `Moment ${i + 1}`, content: h.content })),
+        highlights: visible.map((h, i) => ({ title: `${t('preview.momentLabel', { index: i + 1 })}`, content: h.content || '' })),
       }
     }
     return {
@@ -172,18 +172,40 @@ export default function Preview() {
       name: state.name,
       birthYear: state.birthYear,
       albumYear: state.albumYear,
-      highlights: state.highlights,
+      highlights: visible.map((h) => ({ month: h.month, content: h.content || '' })),
     }
   }
 
   // Generate story
-  const handleGenerate = async () => {
-    if (state.type === 'child' || state.type === 'pet') {
-      const birth = Number(state.birthYear)
-      const album = Number(state.albumYear)
-      if (birth && album && album < birth) {
-        setGenerateError(t('errors.albumYearError'))
+  const handleGenerate = async (skipValidation = false) => {
+    if (!skipValidation) {
+      const type = state.type || 'child'
+      // Validation
+      if (!state.name) {
+        setGenerateError(t('errors.nameRequired'))
         return
+      }
+      if (type === 'child' || type === 'pet') {
+        if (!state.birthYear) {
+          setGenerateError(t('errors.birthYearRequired'))
+          return
+        }
+        if (!state.albumYear) {
+          setGenerateError(t('errors.albumYearRequired'))
+          return
+        }
+        const birth = Number(state.birthYear)
+        const album = Number(state.albumYear)
+        if (birth && album && album < birth) {
+          setGenerateError(t('errors.albumYearError'))
+          return
+        }
+      }
+      if (type === 'travel' || type === 'memory') {
+        if (!state.birthYear) {
+          setGenerateError(t('errors.periodRequired'))
+          return
+        }
       }
     }
     setGenerating(true)
@@ -208,6 +230,71 @@ export default function Preview() {
       dispatch({ type: 'SET_GENERATED_STORY', payload: result })
     } catch { /* ignore */ }
     setRegeneratingStory(false)
+  }
+
+  // Video slideshow
+  const handleGenerateVideo = async () => {
+    const highlightImages = state.highlights
+      .map((h) => h.imageFile)
+      .filter(Boolean)
+    let coverFile = state.coverImageFile
+    if (!coverFile) {
+      try {
+        const response = await fetch(DUMMY_COVER_IMAGE)
+        const blob = await response.blob()
+        coverFile = new File([blob], 'cover.jpg', { type: 'image/jpeg' })
+      } catch {
+        coverFile = null
+      }
+    }
+    const imageFiles = [
+      ...(coverFile ? [coverFile] : []),
+      ...highlightImages,
+    ]
+    if (imageFiles.length === 0) {
+      setVideoError(t('preview.videoNoImages'))
+      return
+    }
+    setVideoError(null)
+    setVideoGenerating(true)
+    try {
+      const captions = [
+        ...(coverFile ? [''] : []),
+        ...state.highlights
+          .filter((h) => h.imageFile)
+          .map((h) => h.content || ''),
+      ]
+      console.log('[커버]', !!state.coverImageFile)
+      console.log('[내지 사진 수]', state.highlights.filter((h) => h.imageFile).length)
+      console.log('[최종 images 수]', imageFiles.length)
+      console.log('[최종 captions 수]', captions.length)
+      console.log('POST /api/video/generate payload:', {
+        images: imageFiles.map((f) => f.name),
+        title: story.title,
+        subtitle: story.subtitle,
+        captions,
+        story: story.story?.slice(0, 50) + '...',
+        bgm: bgmFile?.name || null,
+      })
+      const res = await generateVideo(imageFiles, {
+        title: story.title,
+        subtitle: story.subtitle,
+        captions,
+        story: story.story,
+        bgmFile,
+      })
+      const url = window.URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${state.name || 'slideshow'}.mp4`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setVideoError(err.response?.data?.message || err.message || t('errors.generic'))
+    }
+    setVideoGenerating(false)
   }
 
   // Template modal
@@ -334,13 +421,13 @@ export default function Preview() {
                   </div>
                 )}
 
-                {/* Inner page (month / travel / memory) */}
-                {(page.type === 'month' || page.type === 'travel' || page.type === 'memory') && (
+                {/* Inner page */}
+                {page.type === 'inner' && (
                   <div className="flex-1 flex flex-col">
                     {/* Photo area */}
                     {page.imagePreview ? (
-                      <div className="relative h-2/5">
-                        <img src={page.imagePreview} alt="" className="w-full h-full object-cover" />
+                      <div className="relative h-48 flex-shrink-0">
+                        <img src={page.imagePreview} alt="" className="w-full h-full object-cover object-center" />
                         <button
                           onClick={() => removeHighlightPhoto(page.month)}
                           className="absolute top-2 right-2 h-6 px-2 rounded-full bg-[#1A1A1A]/60 hover:bg-[#1A1A1A] text-white flex items-center gap-1 text-[10px] font-medium cursor-pointer transition-colors duration-200"
@@ -354,7 +441,7 @@ export default function Preview() {
                     ) : (
                       <button
                         onClick={() => highlightInputRefs.current[page.month]?.click()}
-                        className="h-2/5 border-b border-dashed border-[#E5E5E3] bg-[#FAFAF9] flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-primary/5 transition-colors duration-200"
+                        className="h-48 flex-shrink-0 border-b border-dashed border-[#E5E5E3] bg-[#FAFAF9] flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-primary/5 transition-colors duration-200"
                       >
                         <svg className="w-7 h-7 text-[#D1D1CF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
@@ -372,43 +459,15 @@ export default function Preview() {
                     {/* Text content */}
                     <div className="flex-1 p-5 flex flex-col justify-center">
                       <p className="text-lg font-bold text-primary mb-2">
-                        {page.type === 'month' && t('preview.monthLabel', { month: page.month })}
-                        {page.type === 'travel' && t('preview.dayLabel', { index: page.index + 1 })}
-                        {page.type === 'memory' && t('preview.momentLabel', { index: page.index + 1 })}
+                        {t('preview.pageLabel', { index: page.index + 1 })}
                       </p>
-                      <p className="text-sm text-[#4A4A4A] leading-relaxed">
-                        {page.content || (page.type === 'month' ? t('preview.quietMonth') : '')}
-                      </p>
-                      {/* Caption */}
-                      {page.caption && (
-                        <p className="text-xs text-primary/80 italic mt-2 leading-relaxed">{page.caption}</p>
-                      )}
-                      {/* AI Caption Button */}
-                      {page.content && (
-                        <button
-                          onClick={() => handleGenerateCaption(page.month)}
-                          disabled={captionLoading === page.month}
-                          className={`mt-3 self-start flex items-center gap-1.5 text-[10px] font-medium px-3 py-1.5 rounded-lg border transition-colors duration-200 ${
-                            captionLoading === page.month
-                              ? 'border-[#E5E5E3] text-[#ACACAC] cursor-not-allowed'
-                              : 'border-primary/30 text-primary hover:bg-primary/5 cursor-pointer'
-                          }`}
-                        >
-                          {captionLoading === page.month ? (
-                            <>
-                              <span className="w-3 h-3 border-2 border-[#ACACAC] border-t-transparent rounded-full animate-spin" />
-                              <span>{t('preview.generating')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
-                              </svg>
-                              <span>{page.caption ? t('preview.regenerateCaption') : t('preview.generateCaption')}</span>
-                            </>
-                          )}
-                        </button>
-                      )}
+                      <textarea
+                        value={page.content}
+                        onChange={(e) => dispatch({ type: 'SET_HIGHLIGHT', payload: { month: page.month, content: e.target.value } })}
+                        placeholder={t('preview.contentPlaceholder')}
+                        rows={2}
+                        className="text-sm text-[#4A4A4A] leading-relaxed w-full px-3 py-2 rounded-lg border border-[#E5E5E3] resize-none focus:outline-none focus:border-primary transition-colors duration-200"
+                      />
                     </div>
                   </div>
                 )}
@@ -428,105 +487,116 @@ export default function Preview() {
           </div>
 
           {/* Page Number */}
-          <p className="text-center text-xs text-[#6B6B6B] font-medium mb-8">
+          <p className="text-center text-xs text-[#6B6B6B] font-medium mb-4">
             {safePage + 1} / {totalPages}
           </p>
 
-          {/* Story section (after generation) */}
-          {hasStory && (
-            <div className="space-y-4 mb-8">
-              {/* Title */}
-              <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.titleLabel')}</span>
-                  {!editingTitle && (
-                    <button
-                      onClick={() => { setEditingTitle(true); setTitleDraft(story.title || '') }}
-                      className="flex items-center gap-1 text-xs text-primary font-medium cursor-pointer hover:text-primary-dark transition-colors duration-200"
-                    >
-                      <PencilIcon />
-                      <span>{t('buttons.edit')}</span>
-                    </button>
-                  )}
-                </div>
-                {editingTitle ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={titleDraft}
-                      onChange={(e) => setTitleDraft(e.target.value)}
-                      className="flex-1 px-3 py-2 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary transition-colors duration-200"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => {
-                        dispatch({ type: 'SET_GENERATED_STORY', payload: { ...story, title: titleDraft } })
-                        setEditingTitle(false)
-                      }}
-                      className="text-xs bg-primary text-white px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-dark transition-colors duration-200"
-                    >
-                      {t('buttons.save')}
-                    </button>
-                    <button
-                      onClick={() => setEditingTitle(false)}
-                      className="text-xs text-[#6B6B6B] px-2 py-2 cursor-pointer hover:text-[#1A1A1A] transition-colors duration-200"
-                    >
-                      {t('buttons.cancel')}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-base text-[#1A1A1A] font-semibold">{story.title || '-'}</p>
+          {/* Add Page Button */}
+          <button
+            onClick={handleAddPage}
+            className="w-full mb-8 border-2 border-dashed border-[#E5E5E3] hover:border-primary text-[#6B6B6B] hover:text-primary text-sm font-medium py-3 rounded-xl transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            {t('preview.addPage')}
+          </button>
+
+          {/* Story section (always visible) */}
+          <div className="space-y-4 mb-8">
+            {/* Title */}
+            <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.titleLabel')}</span>
+                {hasStory && !editingTitle && (
+                  <button
+                    onClick={() => { setEditingTitle(true); setTitleDraft(story.title || '') }}
+                    className="flex items-center gap-1 text-xs text-primary font-medium cursor-pointer hover:text-primary-dark transition-colors duration-200"
+                  >
+                    <PencilIcon />
+                    <span>{t('buttons.edit')}</span>
+                  </button>
                 )}
               </div>
-
-              {/* Subtitle */}
-              <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.subtitleLabel')}</span>
-                  {!editingSubtitle && (
-                    <button
-                      onClick={() => { setEditingSubtitle(true); setSubtitleDraft(story.subtitle || '') }}
-                      className="flex items-center gap-1 text-xs text-primary font-medium cursor-pointer hover:text-primary-dark transition-colors duration-200"
-                    >
-                      <PencilIcon />
-                      <span>{t('buttons.edit')}</span>
-                    </button>
-                  )}
+              {editingTitle ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary transition-colors duration-200"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => {
+                      dispatch({ type: 'SET_GENERATED_STORY', payload: { ...story, title: titleDraft } })
+                      setEditingTitle(false)
+                    }}
+                    className="text-xs bg-primary text-white px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-dark transition-colors duration-200"
+                  >
+                    {t('buttons.save')}
+                  </button>
+                  <button
+                    onClick={() => setEditingTitle(false)}
+                    className="text-xs text-[#6B6B6B] px-2 py-2 cursor-pointer hover:text-[#1A1A1A] transition-colors duration-200"
+                  >
+                    {t('buttons.cancel')}
+                  </button>
                 </div>
-                {editingSubtitle ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={subtitleDraft}
-                      onChange={(e) => setSubtitleDraft(e.target.value)}
-                      className="flex-1 px-3 py-2 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary transition-colors duration-200"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => {
-                        dispatch({ type: 'SET_GENERATED_STORY', payload: { ...story, subtitle: subtitleDraft } })
-                        setEditingSubtitle(false)
-                      }}
-                      className="text-xs bg-primary text-white px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-dark transition-colors duration-200"
-                    >
-                      {t('buttons.save')}
-                    </button>
-                    <button
-                      onClick={() => setEditingSubtitle(false)}
-                      className="text-xs text-[#6B6B6B] px-2 py-2 cursor-pointer hover:text-[#1A1A1A] transition-colors duration-200"
-                    >
-                      {t('buttons.cancel')}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[#6B6B6B]">{story.subtitle || '-'}</p>
+              ) : (
+                <p className={`text-base font-semibold ${hasStory ? 'text-[#1A1A1A]' : 'text-[#ACACAC]'}`}>{story.title || '-'}</p>
+              )}
+            </div>
+
+            {/* Subtitle */}
+            <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.subtitleLabel')}</span>
+                {hasStory && !editingSubtitle && (
+                  <button
+                    onClick={() => { setEditingSubtitle(true); setSubtitleDraft(story.subtitle || '') }}
+                    className="flex items-center gap-1 text-xs text-primary font-medium cursor-pointer hover:text-primary-dark transition-colors duration-200"
+                  >
+                    <PencilIcon />
+                    <span>{t('buttons.edit')}</span>
+                  </button>
                 )}
               </div>
+              {editingSubtitle ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={subtitleDraft}
+                    onChange={(e) => setSubtitleDraft(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary transition-colors duration-200"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => {
+                      dispatch({ type: 'SET_GENERATED_STORY', payload: { ...story, subtitle: subtitleDraft } })
+                      setEditingSubtitle(false)
+                    }}
+                    className="text-xs bg-primary text-white px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-dark transition-colors duration-200"
+                  >
+                    {t('buttons.save')}
+                  </button>
+                  <button
+                    onClick={() => setEditingSubtitle(false)}
+                    className="text-xs text-[#6B6B6B] px-2 py-2 cursor-pointer hover:text-[#1A1A1A] transition-colors duration-200"
+                  >
+                    {t('buttons.cancel')}
+                  </button>
+                </div>
+              ) : (
+                <p className={`text-sm ${hasStory ? 'text-[#6B6B6B]' : 'text-[#ACACAC]'}`}>{story.subtitle || '-'}</p>
+              )}
+            </div>
 
-              {/* Story */}
-              <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.storyLabel')}</span>
+            {/* Story */}
+            <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.storyLabel')}</span>
+                {hasStory && (
                   <button
                     onClick={handleRegenerateStory}
                     disabled={regeneratingStory}
@@ -548,15 +618,15 @@ export default function Preview() {
                       </>
                     )}
                   </button>
-                </div>
-                <div className="max-h-40 overflow-y-auto">
-                  <p className="text-sm text-[#4A4A4A] leading-relaxed whitespace-pre-wrap">
-                    {story.story || t('preview.noStory')}
-                  </p>
-                </div>
+                )}
+              </div>
+              <div className="max-h-40 overflow-y-auto">
+                <p className={`text-sm leading-relaxed whitespace-pre-wrap ${hasStory ? 'text-[#4A4A4A]' : 'text-[#ACACAC]'}`}>
+                  {hasStory ? (story.story || t('preview.noStory')) : t('preview.storyPlaceholder')}
+                </p>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Customize toggle */}
           <button
@@ -574,59 +644,84 @@ export default function Preview() {
 
           {showOptions && (
             <div className="space-y-3 mb-8">
-              {/* Cover template */}
+              {/* BGM Upload */}
               <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">{t('preview.coverTemplate')}</span>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#6B6B6B] font-mono">{state.selectedCoverTemplateUid || DEFAULT_COVER_TEMPLATE}</span>
-                    {state.selectedCoverTemplateUid === DEFAULT_COVER_TEMPLATE && (
-                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{t('preview.defaultValue')}</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => openTemplatePicker('cover')}
-                    className="text-xs text-primary border border-primary hover:bg-primary/5 font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 cursor-pointer"
-                  >
-                    {t('buttons.change')}
-                  </button>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider">{t('preview.bgmLabel')}</span>
                 </div>
+                {bgmFile ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
+                      </svg>
+                      <span className="text-sm text-[#4A4A4A] truncate">{bgmFile.name}</span>
+                    </div>
+                    <button
+                      onClick={() => { setBgmFile(null); if (bgmInputRef.current) bgmInputRef.current.value = '' }}
+                      className="w-6 h-6 rounded-full bg-[#F0F0EE] hover:bg-[#E5E5E3] flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors duration-200"
+                    >
+                      <svg className="w-3.5 h-3.5 text-[#6B6B6B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => bgmInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-[#D1D1CF] text-sm text-[#6B6B6B] hover:border-primary hover:text-primary cursor-pointer transition-colors duration-200"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    {t('preview.bgmAdd')}
+                  </button>
+                )}
+                <input
+                  ref={bgmInputRef}
+                  type="file"
+                  accept=".mp3,.wav,audio/mpeg,audio/wav"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) setBgmFile(file)
+                  }}
+                  className="hidden"
+                />
+                <p className="text-base text-orange-500 mt-2 py-2"><span className="mr-1">⚠️</span>{t('preview.bgmCopyright')}</p>
               </div>
 
-              {/* Content template */}
-              <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">{t('preview.contentTemplate')}</span>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#6B6B6B] font-mono">{state.selectedContentTemplateUid || DEFAULT_CONTENT_TEMPLATE}</span>
-                    {state.selectedContentTemplateUid === DEFAULT_CONTENT_TEMPLATE && (
-                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{t('preview.defaultValue')}</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => openTemplatePicker('content')}
-                    className="text-xs text-primary border border-primary hover:bg-primary/5 font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 cursor-pointer"
-                  >
-                    {t('buttons.change')}
-                  </button>
-                </div>
-              </div>
-
-              {/* Cover image */}
-              <div className="bg-white rounded-xl border border-[#E5E5E3] p-4">
-                <span className="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wider block mb-2">{t('preview.coverImage')}</span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-xs text-primary border border-primary hover:bg-primary/5 font-medium px-3 py-1.5 rounded-lg transition-colors duration-200 cursor-pointer"
-                  >
-                    {t('preview.changeImage')}
-                  </button>
-                  <span className="text-xs text-[#ACACAC]">
-                    {state.coverImagePreview ? t('preview.userImage') : t('preview.defaultImage')}
+              {/* Slideshow Video */}
+              {state.highlights.filter((h) => h.imageFile).length < 3 && (
+                <p className="text-sm text-orange-500 bg-orange-50 rounded-lg px-3 py-2 text-center">
+                  {t('preview.videoMinPhotos')}
+                </p>
+              )}
+              {videoError && (
+                <p className="text-sm text-red-500 mb-2 text-center">{videoError}</p>
+              )}
+              <button
+                onClick={handleGenerateVideo}
+                disabled={videoGenerating}
+                className={`w-full text-base font-medium py-4 rounded-xl border-2 transition-colors duration-200 ${
+                  videoGenerating
+                    ? 'border-[#D1D1CF] text-[#ACACAC] bg-white cursor-not-allowed'
+                    : 'border-primary text-primary bg-white hover:bg-primary/5 cursor-pointer'
+                }`}
+              >
+                {videoGenerating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-[#ACACAC] border-t-transparent rounded-full animate-spin" />
+                    {t('preview.videoGenerating')}
                   </span>
-                </div>
-              </div>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                    {t('preview.videoGenerate')}
+                  </span>
+                )}
+              </button>
             </div>
           )}
 
@@ -636,28 +731,48 @@ export default function Preview() {
           )}
 
           {/* Action buttons */}
-          <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2 mb-4 text-center leading-relaxed">
-            {t('preview.pageHint')}
+          <p className="text-base text-blue-500 bg-blue-50 rounded-lg px-3 py-2 mb-4 text-center leading-relaxed">
+            {t('preview.videoHint')}
           </p>
 
           <button
-            onClick={() => hasStory ? navigate('/loading') : handleGenerate()}
+            onClick={handleGenerate}
             disabled={generating}
-            className={`w-full text-white text-base font-medium py-4 rounded-xl transition-colors duration-200 ${
+            className={`w-full text-base font-medium py-4 rounded-xl border-2 transition-colors duration-200 mb-3 ${
               generating
-                ? 'bg-[#D1D1CF] cursor-not-allowed'
-                : 'bg-primary hover:bg-primary-dark cursor-pointer'
+                ? 'border-[#D1D1CF] text-[#ACACAC] bg-white cursor-not-allowed'
+                : 'border-primary text-primary bg-white hover:bg-primary/5 cursor-pointer'
             }`}
           >
             {generating ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-[#ACACAC] border-t-transparent rounded-full animate-spin" />
                 {t('preview.generatingStory')}
               </span>
             ) : (
-              t('preview.makeBook')
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                </svg>
+                {t('preview.generateStoryBtn')}
+              </span>
             )}
           </button>
+
+          <button
+            onClick={() => navigate('/loading')}
+            disabled={!hasStory}
+            className={`w-full text-white text-base font-medium py-4 rounded-xl transition-colors duration-200 ${
+              hasStory
+                ? 'bg-primary hover:bg-primary-dark cursor-pointer'
+                : 'bg-[#D1D1CF] cursor-not-allowed'
+            }`}
+          >
+            {t('preview.makeBook')}
+          </button>
+          {!hasStory && (
+            <p className="text-xs text-[#ACACAC] text-center mt-2">{t('preview.storyRequiredHint')}</p>
+          )}
         </div>
       </main>
 

@@ -24,20 +24,9 @@ export default function AlbumView() {
   if (state.generatedStory) {
     pages.push({ type: 'story' })
   }
-  const albumType = state.type || 'child'
-  if (albumType === 'child' || albumType === 'pet') {
-    state.highlights.forEach((h) => {
-      pages.push({ type: 'month', month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
-    })
-  } else if (albumType === 'travel') {
-    state.highlights.filter((h) => h.content).forEach((h, i) => {
-      pages.push({ type: 'travel', index: i, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
-    })
-  } else if (albumType === 'memory') {
-    state.highlights.filter((h) => h.content).forEach((h, i) => {
-      pages.push({ type: 'memory', index: i, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
-    })
-  }
+  state.highlights.forEach((h, i) => {
+    pages.push({ type: 'inner', index: i, month: h.month, content: h.content, caption: h.caption, imagePreview: h.imagePreview })
+  })
 
   const totalPages = pages.length
   const safePage = Math.min(currentPage, totalPages - 1)
@@ -114,15 +103,15 @@ export default function AlbumView() {
                 )}
 
                 {/* Inner pages */}
-                {(page.type === 'month' || page.type === 'travel' || page.type === 'memory') && (
+                {page.type === 'inner' && (
                   <div className="flex-1 flex flex-col">
                     {/* Photo */}
                     {page.imagePreview ? (
-                      <div className="h-2/5">
-                        <img src={page.imagePreview} alt="" className="w-full h-full object-cover" />
+                      <div className="h-48 flex-shrink-0">
+                        <img src={page.imagePreview} alt="" className="w-full h-full object-cover object-center" />
                       </div>
                     ) : (
-                      <div className="h-2/5 bg-[#FAFAF9] flex items-center justify-center">
+                      <div className="h-48 flex-shrink-0 bg-[#FAFAF9] flex items-center justify-center">
                         <svg className="w-8 h-8 text-[#E5E5E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
                         </svg>
@@ -131,12 +120,10 @@ export default function AlbumView() {
                     {/* Text */}
                     <div className="flex-1 p-5 flex flex-col justify-center">
                       <p className="text-lg font-bold text-primary mb-2">
-                        {page.type === 'month' && t('preview.monthLabel', { month: page.month })}
-                        {page.type === 'travel' && t('preview.dayLabel', { index: page.index + 1 })}
-                        {page.type === 'memory' && t('preview.momentLabel', { index: page.index + 1 })}
+                        {t('preview.pageLabel', { index: page.index + 1 })}
                       </p>
                       <p className="text-sm text-[#4A4A4A] leading-relaxed">
-                        {page.content || (page.type === 'month' ? t('preview.quietMonth') : '')}
+                        {page.content || ''}
                       </p>
                       {page.caption && (
                         <p className="text-xs text-primary/80 italic mt-2 leading-relaxed">{page.caption}</p>
