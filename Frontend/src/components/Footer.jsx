@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import LanguageSwitcher from './LanguageSwitcher'
+
 
 export default function Footer() {
   const { t } = useTranslation('common')
@@ -8,10 +8,7 @@ export default function Footer() {
   return (
     <footer className="border-t border-[#E5E5E3] bg-white px-6 py-8">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-bold text-primary">{t('brand')}</p>
-          <LanguageSwitcher />
-        </div>
+        <p className="text-sm font-bold text-primary mb-3">{t('brand')}</p>
         <div className="flex items-center gap-4 mb-4">
           <Link
             to="/terms"

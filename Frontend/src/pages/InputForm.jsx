@@ -9,7 +9,7 @@ const CURRENT_YEAR = String(new Date().getFullYear())
 const INPUT_CLASS = 'w-full px-4 py-3 rounded-xl border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200'
 
 export default function InputForm() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
 
@@ -32,7 +32,7 @@ export default function InputForm() {
   }, [])
 
   const fillSample = () => {
-    const sample = getSample(albumType)
+    const sample = getSample(albumType, i18n.language)
     if (albumType === 'travel' || albumType === 'memory') {
       setMoments(sample.highlights.filter((h) => h.content).map((h, i) => ({ month: i + 1, content: h.content })))
     }

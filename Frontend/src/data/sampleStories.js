@@ -15,7 +15,9 @@ function makeMoments(items) {
   return highlights
 }
 
-const childSamples = [
+// ── Korean ──────────────────────────────────────────────
+
+const childSamplesKo = [
   {
     name: '지호',
     birthYear: '2022',
@@ -57,7 +59,7 @@ const childSamples = [
   },
 ]
 
-const petSamples = [
+const petSamplesKo = [
   {
     name: '코코',
     birthYear: '2021',
@@ -99,7 +101,7 @@ const petSamples = [
   },
 ]
 
-const travelSamples = [
+const travelSamplesKo = [
   {
     name: '2026 제주도 봄 여행',
     birthYear: '2026.03.01 - 2026.03.05',
@@ -136,7 +138,7 @@ const travelSamples = [
   },
 ]
 
-const memorySamples = [
+const memorySamplesKo = [
   {
     name: '아버지',
     birthYear: '1990~2025년',
@@ -172,16 +174,186 @@ const memorySamples = [
   },
 ]
 
-const samplesByType = {
-  child: childSamples,
-  pet: petSamples,
-  travel: travelSamples,
-  memory: memorySamples,
+// ── English ─────────────────────────────────────────────
+
+const childSamplesEn = [
+  {
+    name: 'Jiho',
+    birthYear: '2022',
+    albumYear: '2025',
+    highlights: makeHighlights({
+      1: 'Said "Mama" for the very first time',
+      3: 'Started going to daycare',
+      5: 'Rode a bicycle for the first time',
+      7: 'Went swimming in the ocean for the first time',
+      10: 'Dressed up as a pumpkin for Halloween',
+      12: 'Met Santa Claus for the first time',
+    }),
+  },
+  {
+    name: 'Seoyeon',
+    birthYear: '2021',
+    albumYear: '2025',
+    highlights: makeHighlights({
+      2: 'Ate a meal all by herself for the first time',
+      4: 'Made a new friend at kindergarten',
+      6: 'Got over the fear of the swimming pool',
+      8: 'Tended a garden at Grandma\'s house',
+      9: 'Wrote a picture diary for the first time',
+      11: 'Performed at a piano recital',
+    }),
+  },
+  {
+    name: 'Minjun',
+    birthYear: '2023',
+    albumYear: '2025',
+    highlights: makeHighlights({
+      1: 'Rolled over for the very first time',
+      3: 'Got his first tooth',
+      5: 'Started sitting up on his own',
+      7: 'Started crawling for the first time',
+      9: 'Pulled himself up to stand',
+      12: 'Took his very first steps',
+    }),
+  },
+]
+
+const petSamplesEn = [
+  {
+    name: 'Coco',
+    birthYear: '2021',
+    albumYear: CURRENT_YEAR,
+    highlights: makeHighlights({
+      1: 'Went on a walk in the park for the first time',
+      3: 'Had a bath for the very first time',
+      5: 'Met another puppy friend for the first time',
+      7: 'Went swimming in the ocean for the first time',
+      9: 'Completed sit training',
+      12: 'Got a Christmas present',
+    }),
+  },
+  {
+    name: 'Bori',
+    birthYear: '2020',
+    albumYear: CURRENT_YEAR,
+    highlights: makeHighlights({
+      2: 'Started agility training for the first time',
+      4: 'Learned to catch a frisbee at the park',
+      6: 'Had a blast playing in the pool',
+      8: 'Went camping for the first time',
+      10: 'Participated in a dog show',
+      12: 'Ran through the snow for the first time',
+    }),
+  },
+  {
+    name: 'Nabi',
+    birthYear: '2022',
+    albumYear: CURRENT_YEAR,
+    highlights: makeHighlights({
+      1: 'Climbed the cat tower for the first time',
+      3: 'Fell in love with a new toy',
+      6: 'Loves watching birds from the windowsill',
+      8: 'Had a bath for the very first time',
+      10: 'Started following their human everywhere',
+      12: 'Knocked over the Christmas tree',
+    }),
+  },
+]
+
+const travelSamplesEn = [
+  {
+    name: '2026 Jeju Island Spring Trip',
+    birthYear: '2026.03.01 - 2026.03.05',
+    albumYear: CURRENT_YEAR,
+    highlights: makeMoments([
+      { content: 'Successfully hiked to the top of Mt. Halla' },
+      { content: 'Watched the sunrise at Seongsan Ilchulbong' },
+      { content: 'Rode a bicycle around Udo Island' },
+      { content: 'Discovered an amazing black pork restaurant' },
+      { content: 'Watched the sunset at Hyeopjae Beach' },
+    ]),
+  },
+  {
+    name: '2026 Tokyo Trip',
+    birthYear: '2026.01.10 - 2026.01.14',
+    albumYear: CURRENT_YEAR,
+    highlights: makeMoments([
+      { content: 'Visited Senso-ji Temple in Asakusa' },
+      { content: 'Walked across the Shibuya Scramble Crossing' },
+      { content: 'Had sushi at Tsukiji Market' },
+      { content: 'Went shopping in Harajuku' },
+      { content: 'Went up the Tokyo Skytree' },
+    ]),
+  },
+  {
+    name: '2025 Busan Summer Trip',
+    birthYear: '2025.08.01 - 2025.08.03',
+    albumYear: CURRENT_YEAR,
+    highlights: makeMoments([
+      { content: 'Swam at Haeundae Beach' },
+      { content: 'Explored Gamcheon Culture Village' },
+      { content: 'Enjoyed the night view of Gwangan Bridge' },
+    ]),
+  },
+]
+
+const memorySamplesEn = [
+  {
+    name: 'Father',
+    birthYear: '1990–2025',
+    albumYear: CURRENT_YEAR,
+    highlights: makeMoments([
+      { content: 'Dad taught me how to ride a bicycle' },
+      { content: 'We went fishing by the river every summer' },
+      { content: 'Dad gave me a bouquet of flowers at graduation' },
+      { content: 'We took a trip to Jeju Island together' },
+    ]),
+  },
+  {
+    name: 'Our Family',
+    birthYear: '2000–2025',
+    albumYear: CURRENT_YEAR,
+    highlights: makeMoments([
+      { content: 'The whole family took a trip to Gyeongju' },
+      { content: 'We gathered at Grandma\'s house every Chuseok' },
+      { content: 'Took a family photo for our 20th anniversary' },
+      { content: 'The whole family ate together every Sunday' },
+    ]),
+  },
+  {
+    name: 'Grandmother',
+    birthYear: '1980–2024',
+    albumYear: CURRENT_YEAR,
+    highlights: makeMoments([
+      { content: 'Walked through the market holding Grandma\'s hand as a child' },
+      { content: 'I miss the kimchi stew Grandma used to make' },
+      { content: 'Grew vegetables in Grandma\'s garden' },
+      { content: 'Celebrated Grandma\'s 80th birthday together' },
+    ]),
+  },
+]
+
+// ── Export ───────────────────────────────────────────────
+
+export const sampleStories = {
+  ko: {
+    child: childSamplesKo,
+    pet: petSamplesKo,
+    travel: travelSamplesKo,
+    memory: memorySamplesKo,
+  },
+  en: {
+    child: childSamplesEn,
+    pet: petSamplesEn,
+    travel: travelSamplesEn,
+    memory: memorySamplesEn,
+  },
 }
 
-export function getSample(type) {
-  const list = samplesByType[type] || childSamples
+export function getSample(type, lang = 'ko') {
+  const stories = sampleStories[lang] || sampleStories.ko
+  const list = stories[type] || stories.child
   return list[Math.floor(Math.random() * list.length)]
 }
 
-export default childSamples
+export default childSamplesKo
