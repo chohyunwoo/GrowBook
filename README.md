@@ -54,6 +54,8 @@
 ---
 
 ## 프로젝트 구조
+`````
+`````
 growbook/
 ├── backend/
 │   ├── src/
@@ -119,7 +121,7 @@ growbook/
 │
 └── dummy-data/
 └── child-stories.json
-
+`````
 ---
 
 ## 실행 방법
