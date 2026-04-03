@@ -628,6 +628,9 @@ export default function Preview() {
             </div>
           </div>
 
+          {/* Video hint */}
+          <p className="text-sm text-blue-500 text-center mb-3">{t('preview.videoSettingsHint')}</p>
+
           {/* Customize toggle */}
           <button
             onClick={() => setShowOptions(!showOptions)}
@@ -731,10 +734,6 @@ export default function Preview() {
           )}
 
           {/* Action buttons */}
-          <p className="text-base text-blue-500 bg-blue-50 rounded-lg px-3 py-2 mb-4 text-center leading-relaxed">
-            {t('preview.videoHint')}
-          </p>
-
           <button
             onClick={handleGenerate}
             disabled={generating}
