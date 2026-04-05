@@ -19,6 +19,7 @@
 - 🤖 사용자 입력 기반 Claude AI 감성 스토리 자동 생성 (제목 + 부제 + 스토리)
 - 📦 Sweetbook Book Print API로 실제 포토북 주문 및 배송
 - 🎬 사진과 입력 내용으로 슬라이드쇼 영상 자동 생성 (배경음악 추가 가능)
+- 🔗 결제 완료 후 포토북 공유 링크 생성 (30일 유효, 로그인 없이 접근 가능)
 - 🌐 한국어 / 영어 다국어 지원
 - 👤 구글 로그인 및 주문 내역 조회
 - 📮 카카오 주소 검색 연동 배송지 관리 및 변경
@@ -70,7 +71,8 @@ growbook/
 │   │   │   ├── orders.js           # 주문 API
 │   │   │   ├── templates.js        # 템플릿 API
 │   │   │   ├── video.js            # 슬라이드쇼 영상 생성 API
-│   │   │   └── admin.js            # 관리자 API
+│   │   │   ├── admin.js            # 관리자 API
+│   │   │   └── share.js            # 공유 링크 API
 │   │   ├── services/
 │   │   │   ├── claudeService.js    # Claude API 호출
 │   │   │   ├── sweetbookService.js # Book Print SDK 호출
@@ -99,6 +101,7 @@ growbook/
 │   │   │   ├── Login.jsx
 │   │   │   ├── ShippingManager.jsx
 │   │   │   ├── Admin.jsx           # 관리자 페이지
+│   │   │   ├── SharedAlbum.jsx     # 공유 앨범 페이지
 │   │   │   ├── Terms.jsx
 │   │   │   └── Privacy.jsx
 │   │   ├── components/
@@ -111,7 +114,8 @@ growbook/
 │   │   │   ├── orderApi.js
 │   │   │   ├── templateApi.js
 │   │   │   ├── videoApi.js         # 영상 생성 API
-│   │   │   └── adminApi.js         # 관리자 API
+│   │   │   ├── adminApi.js         # 관리자 API
+│   │   │   └── shareApi.js         # 공유 링크 API
 │   │   ├── data/
 │   │   │   └── sampleStories.js    # 샘플 체험 데이터
 │   │   ├── locales/
@@ -125,10 +129,12 @@ growbook/
 │   └── package.json
 │
 └── dummy-data/
-    └── child-stories.json
+└── child-stories.json
 ```
 
----
+## 실행 방법
+
+### 사전 준비
 
 - Node.js 18 이상
 - Sweetbook Sandbox API Key ([api.sweetbook.com](https://api.sweetbook.com) 가입 후 발급)
@@ -243,8 +249,6 @@ npm run dev
 
 더미 데이터 위치: `dummy-data/child-stories.json`
 ---
-
-## 주문 상태 코드
 
 ## 주문 상태 코드
 
@@ -410,9 +414,8 @@ GrowBook은 AI가 스토리와 캡션을 자동 생성해주어 누구나 쉽게
 ### 더 시간이 있었다면 추가했을 기능
 
 - 사진 자동 레이아웃 배치 AI
-- 정기 구독 플랜 (매월 자동 포토북 생성)
 - 슬라이드쇼 영상 유료화 (현재는 포토북 미리보기 단계에서 무료 제공, 실제 서비스에서는 주문 완료 후에만 다운로드 가능하도록 개선 필요)
-
+- 관리자 페이지 고도화 (주문 상태 변경)
 
 ### 시연 영상
 
