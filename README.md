@@ -21,6 +21,8 @@
 - 🎬 사진과 입력 내용으로 슬라이드쇼 영상 자동 생성 (배경음악 추가 가능)
 - 🌐 한국어 / 영어 다국어 지원
 - 👤 구글 로그인 및 주문 내역 조회
+- 📮 카카오 주소 검색 연동 배송지 관리 및 변경
+- 🔐 관리자 페이지 (충전금 잔액, 전체 주문 현황, 사용자 관리)
 
 ---
 
@@ -39,7 +41,7 @@
 - Sweetbook Book Print API Node.js SDK
 - multer (이미지 업로드)
 - fluent-ffmpeg + sharp (슬라이드쇼 영상 생성)
-- Supabase (주문 내역 저장)
+- Supabase (사용자 및 주문 내역 저장)
 - swagger-ui-express (API 문서)
 
 ### 프론트엔드
@@ -50,13 +52,12 @@
 - Tailwind CSS
 - react-i18next (다국어 지원, 한국어/영어)
 - Supabase Auth (구글 로그인)
+- 카카오 우편번호 서비스 (배송지 검색)
 
 ---
 
 ## 프로젝트 구조
-`````
-`````
-`````
+```
 growbook/
 ├── backend/
 │   ├── src/
@@ -68,7 +69,8 @@ growbook/
 │   │   │   ├── books.js            # 책 생성 API
 │   │   │   ├── orders.js           # 주문 API
 │   │   │   ├── templates.js        # 템플릿 API
-│   │   │   └── video.js            # 슬라이드쇼 영상 생성 API
+│   │   │   ├── video.js            # 슬라이드쇼 영상 생성 API
+│   │   │   └── admin.js            # 관리자 API
 │   │   ├── services/
 │   │   │   ├── claudeService.js    # Claude API 호출
 │   │   │   ├── sweetbookService.js # Book Print SDK 호출
@@ -96,6 +98,7 @@ growbook/
 │   │   │   ├── MyPage.jsx
 │   │   │   ├── Login.jsx
 │   │   │   ├── ShippingManager.jsx
+│   │   │   ├── Admin.jsx           # 관리자 페이지
 │   │   │   ├── Terms.jsx
 │   │   │   └── Privacy.jsx
 │   │   ├── components/
@@ -107,7 +110,8 @@ growbook/
 │   │   │   ├── bookApi.js
 │   │   │   ├── orderApi.js
 │   │   │   ├── templateApi.js
-│   │   │   └── videoApi.js         # 영상 생성 API
+│   │   │   ├── videoApi.js         # 영상 생성 API
+│   │   │   └── adminApi.js         # 관리자 API
 │   │   ├── data/
 │   │   │   └── sampleStories.js    # 샘플 체험 데이터
 │   │   ├── locales/
@@ -122,12 +126,9 @@ growbook/
 │
 └── dummy-data/
     └── child-stories.json
-`````
+```
+
 ---
-
-## 실행 방법
-
-### 사전 준비
 
 - Node.js 18 이상
 - Sweetbook Sandbox API Key ([api.sweetbook.com](https://api.sweetbook.com) 가입 후 발급)
@@ -136,6 +137,7 @@ growbook/
 - FFmpeg 설치 (슬라이드쇼 영상 생성 기능에 필요)
   - Windows: `winget install ffmpeg`
   - Mac: `brew install ffmpeg`
+  - 설치 확인: `ffmpeg -version`
 
 ### 설치
 ```bash
@@ -196,10 +198,10 @@ npm run dev
 브라우저에서 접속: **http://localhost:5173**
 
 실행 성공 시 (백엔드):
-환경변수 확인 완료
-서버가 3001번 포트에서 실행 중입니다
-📄 API 문서: http://localhost:3001/api-docs
----
+```
+[server] http://localhost:3001 에서 실행 중
+[docs]   http://localhost:3001/api-docs
+```
 
 ## 사용한 API 목록
 
@@ -221,12 +223,15 @@ npm run dev
 | POST /orders | 주문 생성 (배송 정보 포함) |
 | GET /orders/{orderUid} | 주문 상태 조회 |
 | POST /orders/{orderUid}/cancel | 주문 취소 |
+| PATCH /orders/{orderUid}/shipping | 배송지 변경 |
 
 ### Credits API
 
 | API | 용도 |
 |-----|------|
 | GET /credits | 충전금 잔액 조회 |
+
+---
 
 ## 샘플 체험
 
@@ -241,13 +246,20 @@ npm run dev
 
 ## 주문 상태 코드
 
+## 주문 상태 코드
+
 | 코드 | 상태 |
 |------|------|
 | 20 | 결제 완료 (PAID) |
+| 25 | PDF 제작 완료 (PDF_READY) |
+| 30 | 주문 확정 (CONFIRMED) |
 | 40 | 제작 중 (IN_PRODUCTION) |
-| 60 | 발송 완료 (SHIPPED) |
+| 50 | 제작 완료 (PRODUCTION_COMPLETE) |
+| 60 | 배송 중 (SHIPPED) |
 | 70 | 배송 완료 (DELIVERED) |
-| 80 | 취소 (CANCELLED) |
+| 80 | 주문 취소 (CANCELLED) |
+| 81 | 취소 및 환불 (CANCELLED_REFUND) |
+
 
 ---
 
@@ -264,8 +276,9 @@ npm run dev
        `https://<your-project-ref>.supabase.co/auth/v1/callback`
    - Supabase Google Provider에 Client ID, Client Secret 입력 후 저장
 
-3. 아래 SQL로 orders 테이블 생성:
+3. 아래 SQL로 테이블 생성:
 ```sql
+-- orders 테이블
 create table orders (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id),
@@ -289,7 +302,63 @@ create policy "Users can insert own orders"
 create policy "Users can update own orders"
   on orders for update
   using (auth.uid() = user_id);
+
+-- profiles 테이블 (구글 로그인 사용자 정보 저장)
+create table profiles (
+  id uuid references auth.users(id) primary key,
+  email text,
+  name text,
+  avatar_url text,
+  is_admin boolean default false,
+  created_at timestamp with time zone default now()
+);
+
+alter table profiles enable row level security;
+
+create policy "Users can view own profile"
+  on profiles for select
+  using (auth.uid() = id);
+
+create policy "Users can update own profile"
+  on profiles for update
+  using (auth.uid() = id);
+
+-- 구글 로그인 시 profiles 테이블에 자동 저장하는 트리거
+create or replace function handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, name, avatar_url)
+  values (
+    new.id,
+    new.email,
+    new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'avatar_url'
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure handle_new_user();
+
+-- 기존 사용자 profiles 테이블에 수동 추가
+insert into public.profiles (id, email, name, avatar_url)
+select
+  id,
+  email,
+  raw_user_meta_data->>'full_name',
+  raw_user_meta_data->>'avatar_url'
+from auth.users
+on conflict (id) do nothing;
+
+-- 관리자 계정 설정 (본인 이메일로 변경)
+update profiles set is_admin = true
+where email = 'your_admin_email@gmail.com';
 ```
+
+---
 
 ## 개발 환경
 
@@ -326,13 +395,28 @@ AI가 자동으로 감성 스토리를 써주고, 사용자가 직접 사진을 
 
 ### 비즈니스 가능성
 
-- SNS 공유 기능을 추가하면 '특별한 날 선물하고 싶은 책'으로 자연스럽게 인식되어 바이럴 마케팅 효과를 기대할 수 있음
-- 인플루언서·아이돌 팬미팅 굿즈로 활용되면 강력한 마케팅 채널이 될 수 있음
+국내 포토북 시장은 꾸준히 성장하고 있으며, 기존 서비스(스냅스, 포토몬 등)는
+사용자가 직접 레이아웃을 편집해야 하는 진입 장벽이 있습니다.
+GrowBook은 AI가 스토리와 캡션을 자동 생성해주어 누구나 쉽게
+감성적인 포토북을 만들 수 있다는 점에서 차별화됩니다.
+
+- **반복 구매 모델**: 아이 성장 포토북은 매년 구매가 발생하는 구조로
+  구독형 서비스로 확장 가능
+- **바이럴 마케팅**: SNS 공유 기능 추가 시 '특별한 날 선물하고 싶은 책'으로
+  자연스럽게 인식되어 바이럴 효과 기대
+- **B2B 확장**: 인플루언서·아이돌 팬미팅 굿즈, 유치원·어린이집 졸업 앨범 등
+  B2B 채널로 확장 가능
 
 ### 더 시간이 있었다면 추가했을 기능
 
-- 앨범 공유 링크 기능
 - 사진 자동 레이아웃 배치 AI
 - 정기 구독 플랜 (매월 자동 포토북 생성)
+- 슬라이드쇼 영상 유료화 (현재는 포토북 미리보기 단계에서 무료 제공, 실제 서비스에서는 주문 완료 후에만 다운로드 가능하도록 개선 필요)
 
-### 시연영상
+
+### 시연 영상
+
+(시연 영상 링크 추가 예정)
+```
+
+---
