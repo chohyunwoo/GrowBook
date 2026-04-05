@@ -67,6 +67,8 @@ export default function Admin() {
   // Orders
   const [orders, setOrders] = useState([])
   const [ordersLoading, setOrdersLoading] = useState(false)
+  const [ordersPage, setOrdersPage] = useState(1)
+  const ORDERS_PER_PAGE = 10
   const [statusFilter, setStatusFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -147,6 +149,7 @@ export default function Admin() {
         const raw = res.data?.data || res.data || []
         const list = Array.isArray(raw) ? raw : (raw.items || raw.orders || [])
         setOrders(list)
+        setOrdersPage(1)
       } catch { /* ignore */ }
       setOrdersLoading(false)
     }
@@ -344,7 +347,7 @@ export default function Admin() {
                           <tr>
                             <td colSpan={5} className="text-center py-12 text-[#ACACAC] text-sm">주문이 없습니다</td>
                           </tr>
-                        ) : orders.map((order) => {
+                        ) : orders.slice((ordersPage - 1) * ORDERS_PER_PAGE, ordersPage * ORDERS_PER_PAGE).map((order) => {
                           const uid = order.orderUid || order.uid
                           return (
                             <tr
@@ -367,6 +370,49 @@ export default function Admin() {
                   </div>
                 </div>
               )}
+              {/* Pagination */}
+              {orders.length > ORDERS_PER_PAGE && (() => {
+                const totalPages = Math.ceil(orders.length / ORDERS_PER_PAGE)
+                return (
+                  <div className="flex items-center justify-center gap-1 mt-4">
+                    <button
+                      onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
+                      disabled={ordersPage === 1}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 ${
+                        ordersPage === 1
+                          ? 'text-[#D1D1CF] cursor-not-allowed'
+                          : 'text-[#6B6B6B] hover:bg-[#F0F0EE] cursor-pointer'
+                      }`}
+                    >
+                      &lt;
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setOrdersPage(page)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer ${
+                          page === ordersPage
+                            ? 'bg-primary text-white'
+                            : 'bg-white text-[#6B6B6B] border border-[#E5E5E3] hover:bg-[#F7F7F5]'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setOrdersPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={ordersPage === totalPages}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 ${
+                        ordersPage === totalPages
+                          ? 'text-[#D1D1CF] cursor-not-allowed'
+                          : 'text-[#6B6B6B] hover:bg-[#F0F0EE] cursor-pointer'
+                      }`}
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                )
+              })()}
             </div>
           )}
 

@@ -25,6 +25,8 @@ export default function MyPage() {
 
   const [orders, setOrders] = useState([])
   const [ordersLoading, setOrdersLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ORDERS_PER_PAGE = 5
   const [cancellingId, setCancellingId] = useState(null)
   const [cancelModal, setCancelModal] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -74,8 +76,10 @@ export default function MyPage() {
         console.log('[MyPage] first order status:', mapped[0]?.status, typeof mapped[0]?.status)
         console.log('[MyPage] first order full:', JSON.stringify(mapped[0]))
         setOrders(mapped)
+        setCurrentPage(1)
       } else {
         setOrders([])
+        setCurrentPage(1)
       }
     } catch {
       setOrders([])
@@ -246,7 +250,7 @@ export default function MyPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {orders.map((order, index) => {
+                  {orders.slice((currentPage - 1) * ORDERS_PER_PAGE, currentPage * ORDERS_PER_PAGE).map((order, index) => {
                     const status = Number(order.status ?? order.orderStatus)
                     const statusText = t(`orderStatus.${status}`, t('checking'))
                     const canCancel = status === 20 || status === 25
@@ -310,6 +314,49 @@ export default function MyPage() {
                     )
                   })}
                 </div>
+                {/* Pagination */}
+                {orders.length > ORDERS_PER_PAGE && (() => {
+                  const totalPages = Math.ceil(orders.length / ORDERS_PER_PAGE)
+                  return (
+                    <div className="flex items-center justify-center gap-1 mt-6">
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 ${
+                          currentPage === 1
+                            ? 'text-[#D1D1CF] cursor-not-allowed'
+                            : 'text-[#6B6B6B] hover:bg-[#F0F0EE] cursor-pointer'
+                        }`}
+                      >
+                        &lt;
+                      </button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer ${
+                            page === currentPage
+                              ? 'bg-primary text-white'
+                              : 'bg-white text-[#6B6B6B] border border-[#E5E5E3] hover:bg-[#F7F7F5]'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 ${
+                          currentPage === totalPages
+                            ? 'text-[#D1D1CF] cursor-not-allowed'
+                            : 'text-[#6B6B6B] hover:bg-[#F0F0EE] cursor-pointer'
+                        }`}
+                      >
+                        &gt;
+                      </button>
+                    </div>
+                  )
+                })()}
               )}
             </>
           )}
