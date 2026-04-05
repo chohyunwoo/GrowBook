@@ -203,18 +203,30 @@ npm run dev
 
 ## 사용한 API 목록
 
+### Books API
+
 | API | 용도 |
 |-----|------|
-| POST /books | 새 포토북 생성 (이미지 포함) |
-| GET /templates | 표지 템플릿 목록 조회 |
-| POST /orders/estimate | 주문 예상 금액 조회 |
-| POST /orders | 주문 생성 |
-| GET /orders/my | 내 주문 목록 조회 |
-| GET /orders/:orderUid | 주문 상태 조회 |
-| POST /orders/:orderUid/cancel | 주문 취소 |
-| GET /credits | 잔액 조회 |
+| POST /books | 새 포토북 생성 → bookUid 발급 |
+| POST /books/{bookUid}/photos | 표지/내지 이미지 업로드 |
+| POST /books/{bookUid}/cover | 표지 템플릿 적용 및 표지 생성 |
+| POST /books/{bookUid}/contents | 내지 페이지 삽입 (스토리, 하이라이트, 빈 페이지) |
+| POST /books/{bookUid}/finalization | 도서 최종화 (편집 완료 확정) |
 
----
+### Orders API
+
+| API | 용도 |
+|-----|------|
+| POST /orders/estimate | 주문 예상 금액 조회 |
+| POST /orders | 주문 생성 (배송 정보 포함) |
+| GET /orders/{orderUid} | 주문 상태 조회 |
+| POST /orders/{orderUid}/cancel | 주문 취소 |
+
+### Credits API
+
+| API | 용도 |
+|-----|------|
+| GET /credits | 충전금 잔액 조회 |
 
 ## 샘플 체험
 
