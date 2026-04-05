@@ -3,7 +3,9 @@
   "nav": {
     "myPage": "My Page",
     "logout": "Logout",
-    "login": "Login"
+    "login": "Login",
+    "community": "Community",
+    "admin": "Admin"
   },
   "buttons": {
     "next": "Next",
@@ -315,5 +317,31 @@
     "s6Title": "6. User Rights",
     "s6Content": "Users may view, modify, or delete their personal information at any time. Users may withdraw consent for personal information processing, which may result in limited service access. Please contact customer support for personal information inquiries.",
     "effectiveDate": "This policy is effective from April 1, 2025."
+  },
+  "community": {
+    "title": "Photobook Community",
+    "subtitle": "Explore other people's precious moments",
+    "gallery": "Gallery",
+    "reviews": "Reviews",
+    "write": "Write",
+    "latest": "Latest",
+    "popular": "Popular",
+    "all": "All",
+    "child": "Baby Growth",
+    "pet": "Pet",
+    "travel": "Travel",
+    "memory": "Memory",
+    "like": "Like",
+    "comment": "Comment",
+    "delete": "Delete",
+    "writePost": "Write Post",
+    "title_placeholder": "Enter title",
+    "content_placeholder": "Enter content",
+    "rating": "Rating",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "noPost": "No posts yet",
+    "noReview": "No reviews yet",
+    "backToList": "Back to list"
   }
 }

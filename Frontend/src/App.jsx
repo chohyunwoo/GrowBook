@@ -17,6 +17,9 @@ import Privacy from './pages/Privacy'
 import AlbumView from './pages/AlbumView'
 import Admin from './pages/Admin'
 import SharedAlbum from './pages/SharedAlbum'
+import Community from './pages/Community'
+import CommunityPost from './pages/CommunityPost'
+import ReviewPost from './pages/ReviewPost'
 
 export default function App() {
   const { dispatch } = useApp()
@@ -53,6 +56,9 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/share/:shareCode" element={<SharedAlbum />} />
+        <Route path="/community" element={<Community />} />
+        <Route path="/community/review/:reviewId" element={<ReviewPost />} />
+        <Route path="/community/:postId" element={<CommunityPost />} />
       </Routes>
     </div>
   )

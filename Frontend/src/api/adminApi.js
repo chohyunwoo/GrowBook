@@ -30,3 +30,29 @@ export function getAdminUsers(accessToken) {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
 }
+
+export function getAdminCommunityPosts(accessToken, params = {}) {
+  return client.get('/api/admin/community', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    params,
+  })
+}
+
+export function deleteAdminPost(accessToken, postId) {
+  return client.delete(`/api/admin/community/${postId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+export function getAdminReviews(accessToken, params = {}) {
+  return client.get('/api/admin/reviews', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    params,
+  })
+}
+
+export function deleteAdminReview(accessToken, reviewId) {
+  return client.delete(`/api/admin/reviews/${reviewId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}

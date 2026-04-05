@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { signOut, supabase } from '../lib/supabase'
 import { getOrder, cancelOrder, updateShipping, getMyOrders } from '../api/orderApi'
 import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm } from '../utils/shipping'
+import { getReview, createReview } from '../api/reviewApi'
 import ShippingManager from './ShippingManager'
 
 const STORAGE_KEY = 'my_order_uids'
@@ -44,6 +45,13 @@ export default function MyPage() {
   const [shippingErrors, setShippingErrors] = useState({})
   const [shippingSaving, setShippingSaving] = useState(false)
   const [shippingSuccess, setShippingSuccess] = useState(false)
+  const [reviewedOrders, setReviewedOrders] = useState({})
+  const [reviewModal, setReviewModal] = useState(null)
+  const [reviewRating, setReviewRating] = useState(0)
+  const [reviewContent, setReviewContent] = useState('')
+  const [reviewImages, setReviewImages] = useState([])
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewSuccess, setReviewSuccess] = useState(false)
   const [activeTab, setActiveTab] = useState('orders')
 
   useEffect(() => {
@@ -83,6 +91,20 @@ export default function MyPage() {
         setOrders(mapped)
         const pages = (body.totalPages ?? body.total_pages ?? Math.ceil((body.totalCount ?? body.total_count ?? mapped.length) / ORDERS_PER_PAGE)) || 1
         setTotalPages(pages)
+        // Check review status for delivered orders
+        const delivered = mapped.filter((o) => Number(o.status) === 70)
+        if (delivered.length > 0) {
+          const reviewed = {}
+          for (const o of delivered) {
+            try {
+              await getReview(o.orderUid, accessToken)
+              reviewed[o.orderUid] = true
+            } catch {
+              reviewed[o.orderUid] = false
+            }
+          }
+          setReviewedOrders((prev) => ({ ...prev, ...reviewed }))
+        }
       } else {
         setOrders([])
         setTotalPages(1)
@@ -159,6 +181,55 @@ export default function MyPage() {
       /* ignore */
     }
     setShippingSaving(false)
+  }
+
+  const openReviewModal = (orderUid) => {
+    setReviewRating(0)
+    setReviewContent('')
+    setReviewImages([])
+    setReviewSuccess(false)
+    setReviewModal(orderUid)
+  }
+
+  const handleReviewImageAdd = (e) => {
+    const files = Array.from(e.target.files || [])
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    const valid = files.filter((f) => allowed.includes(f.type))
+    const remaining = 5 - reviewImages.length
+    const toAdd = valid.slice(0, remaining).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }))
+    setReviewImages((prev) => [...prev, ...toAdd])
+    e.target.value = ''
+  }
+
+  const handleReviewImageRemove = (index) => {
+    setReviewImages((prev) => {
+      URL.revokeObjectURL(prev[index].preview)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  const handleReviewSubmit = async () => {
+    if (reviewRating === 0) return
+    setReviewSubmitting(true)
+    try {
+      const accessToken = supabase
+        ? (await supabase.auth.getSession())?.data?.session?.access_token
+        : null
+      await createReview(
+        { orderUid: reviewModal, rating: reviewRating, content: reviewContent.trim() },
+        reviewImages.map((img) => img.file),
+        accessToken
+      )
+      reviewImages.forEach((img) => URL.revokeObjectURL(img.preview))
+      setReviewImages([])
+      setReviewedOrders((prev) => ({ ...prev, [reviewModal]: true }))
+      setReviewSuccess(true)
+      setTimeout(() => setReviewModal(null), 1500)
+    } catch { /* ignore */ }
+    setReviewSubmitting(false)
   }
 
   const handleLogout = async () => {
@@ -277,6 +348,7 @@ export default function MyPage() {
                                 {{ child: '아이 성장 포토북', pet: '반려동물 포토북', travel: '여행 포토북', memory: '추억 포토북' }[order.album_type || order.albumType] || '포토북'}
                               </p>
                             )}
+                            <p className="text-xs text-gray-500 mt-0.5">수량: {order.quantity ?? 1}권</p>
                             <p className="text-[10px] text-[#ACACAC] font-mono mt-0.5">{order.orderUid}</p>
                           </div>
                           <span className={`flex-shrink-0 ml-3 inline-block px-2.5 py-1 text-[10px] font-semibold rounded-full ${
@@ -315,6 +387,26 @@ export default function MyPage() {
                                 {isCancelling ? t('myPage.cancelling') : t('myPage.cancelOrder')}
                               </button>
                             )}
+                          </div>
+                        )}
+                        {status === 70 && (
+                          <div className="flex items-center gap-3">
+                            {reviewedOrders[order.orderUid] ? (
+                              <p className="text-xs text-[#ACACAC] font-medium">리뷰 완료 ✅</p>
+                            ) : (
+                              <button
+                                onClick={() => openReviewModal(order.orderUid)}
+                                className="text-xs font-medium text-primary hover:text-primary-dark transition-colors duration-200 cursor-pointer"
+                              >
+                                리뷰 작성
+                              </button>
+                            )}
+                            <button
+                              onClick={() => navigate(`/community?write=true&orderUid=${order.orderUid}&albumType=${order.albumType || order.album_type || ''}`)}
+                              className="text-xs font-medium text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors duration-200 cursor-pointer"
+                            >
+                              후기 작성
+                            </button>
                           </div>
                         )}
                       </div>
@@ -510,6 +602,96 @@ export default function MyPage() {
             >
               {t('buttons.close')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
+            {reviewSuccess ? (
+              <div className="text-center py-6">
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-[#1A1A1A]">리뷰가 등록되었어요!</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-[#1A1A1A] mb-4">리뷰 작성</h3>
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-[#6B6B6B] mb-2">별점</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setReviewRating(star)}
+                        className="text-2xl cursor-pointer transition-transform duration-150 hover:scale-110"
+                      >
+                        {star <= reviewRating ? '\u2B50' : '\u2606'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={reviewContent}
+                  onChange={(e) => setReviewContent(e.target.value)}
+                  placeholder="리뷰를 작성해주세요 (선택사항)"
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200 resize-none mb-3"
+                />
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-[#6B6B6B] mb-2">사진 (최대 5장)</p>
+                  {reviewImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {reviewImages.map((img, i) => (
+                        <div key={i} className="relative w-14 h-14">
+                          <img src={img.preview} alt="" className="w-14 h-14 rounded-lg object-cover border border-[#E5E5E3]" />
+                          <button
+                            onClick={() => handleReviewImageRemove(i)}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold cursor-pointer hover:bg-red-600 transition-colors duration-200"
+                          >
+                            X
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {reviewImages.length < 5 && (
+                    <label className="inline-flex items-center gap-1.5 px-3 py-2 border border-dashed border-[#E5E5E3] hover:border-primary rounded-lg text-xs text-[#6B6B6B] hover:text-primary cursor-pointer transition-colors duration-200">
+                      <span>📷 사진 추가</span>
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp"
+                        multiple
+                        onChange={handleReviewImageAdd}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+                <button
+                  onClick={handleReviewSubmit}
+                  disabled={reviewSubmitting || reviewRating === 0}
+                  className={`w-full text-white text-sm font-medium py-3 rounded-xl transition-colors duration-200 mb-3 ${
+                    reviewSubmitting || reviewRating === 0
+                      ? 'bg-[#D1D1CF] cursor-not-allowed'
+                      : 'bg-primary hover:bg-primary-dark cursor-pointer'
+                  }`}
+                >
+                  {reviewSubmitting ? '등록 중...' : '등록'}
+                </button>
+                <button
+                  onClick={() => setReviewModal(null)}
+                  className="w-full text-center text-sm text-[#6B6B6B] hover:text-[#1A1A1A] font-medium py-2 cursor-pointer transition-colors duration-200"
+                >
+                  {t('buttons.close')}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

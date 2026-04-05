@@ -175,6 +175,7 @@ router.post(
               albumTitle: title || '',
               albumType: type || 'child',
               status: 20,
+              quantity,
             })
           }
         } catch (saveErr) {

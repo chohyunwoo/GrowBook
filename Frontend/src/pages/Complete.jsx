@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { getOrder, cancelOrder } from '../api/orderApi'
 import { supabase } from '../lib/supabase'
-import { createShareLink } from '../api/shareApi'
+import { createShareLink, makePublic } from '../api/shareApi'
 
 function getDeliveryDate(t) {
   const date = new Date()
@@ -30,7 +30,10 @@ export default function Complete() {
   const [cancelled, setCancelled] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [shareLink, setShareLink] = useState(null)
+  const [shareCode, setShareCode] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [published, setPublished] = useState(false)
 
   const fetchOrder = async () => {
     if (!state.orderUid) return
@@ -93,8 +96,9 @@ export default function Complete() {
         story: story.story,
         type: state.type,
       })
-      const shareCode = res.data?.data?.shareCode || res.data?.shareCode || res.data?.code
-      const link = `${window.location.origin}/share/${shareCode}`
+      const code = res.data?.data?.shareCode || res.data?.shareCode || res.data?.code
+      const link = `${window.location.origin}/share/${code}`
+      setShareCode(code)
       setShareLink(link)
       await navigator.clipboard.writeText(link)
       setCopied(true)
@@ -110,6 +114,21 @@ export default function Complete() {
     await navigator.clipboard.writeText(shareLink)
     setCopied(true)
     setTimeout(() => setCopied(false), 3000)
+  }
+
+  const handlePublish = async () => {
+    if (!shareCode) return
+    setPublishing(true)
+    try {
+      const accessToken = supabase
+        ? (await supabase.auth.getSession())?.data?.session?.access_token
+        : null
+      await makePublic(shareCode, accessToken)
+      setPublished(true)
+    } catch {
+      setError(t('errors.generic'))
+    }
+    setPublishing(false)
   }
 
   const handleGoHome = () => {
@@ -223,18 +242,35 @@ export default function Complete() {
               {sharing ? t('order.processing', '처리 중...') : '포토북 공유하기 \uD83D\uDD17'}
             </button>
           ) : (
-            <div className="w-full max-w-xs mx-auto">
-              <p className="text-xs text-primary font-medium mb-2">링크가 생성되었어요! (30일간 유효)</p>
-              <div className="flex items-center gap-2 bg-[#F7F7F5] rounded-lg p-2.5 border border-[#E5E5E3]">
-                <p className="flex-1 text-xs text-[#6B6B6B] truncate font-mono">{shareLink}</p>
-                <button
-                  onClick={handleCopyLink}
-                  className="flex-shrink-0 text-xs font-medium text-primary hover:text-primary-dark cursor-pointer transition-colors duration-200"
-                >
-                  {copied ? '복사됨 \u2705' : '복사'}
-                </button>
+            <>
+              <div className="w-full max-w-xs mx-auto">
+                <p className="text-xs text-primary font-medium mb-2">링크가 생성되었어요! (30일간 유효)</p>
+                <div className="flex items-center gap-2 bg-[#F7F7F5] rounded-lg p-2.5 border border-[#E5E5E3]">
+                  <p className="flex-1 text-xs text-[#6B6B6B] truncate font-mono">{shareLink}</p>
+                  <button
+                    onClick={handleCopyLink}
+                    className="flex-shrink-0 text-xs font-medium text-primary hover:text-primary-dark cursor-pointer transition-colors duration-200"
+                  >
+                    {copied ? '복사됨 \u2705' : '복사'}
+                  </button>
+                </div>
               </div>
-            </div>
+              {!published ? (
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing}
+                  className={`w-full max-w-xs mx-auto border text-sm font-medium py-3 px-8 rounded-xl transition-colors duration-200 ${
+                    publishing
+                      ? 'border-[#D1D1CF] text-[#ACACAC] cursor-not-allowed'
+                      : 'border-[#1A1A1A] text-[#1A1A1A] hover:bg-[#F7F7F5] cursor-pointer'
+                  }`}
+                >
+                  {publishing ? t('order.processing', '처리 중...') : '커뮤니티에 공개하기 \uD83C\uDF0D'}
+                </button>
+              ) : (
+                <p className="text-xs text-primary font-medium">커뮤니티에 공개되었어요! 다른 사람들이 볼 수 있어요 \u2705</p>
+              )}
+            </>
           )}
 
           {canCancel && (

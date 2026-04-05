@@ -200,7 +200,8 @@ export default function Order() {
   const productAmount = unitPrice * quantity
   const shippingFee = estimate?.shippingFee ?? estimate?.shippingPrice ?? estimate?.shipping ?? 0
   const totalAmount = productAmount + shippingFee
-  const paidCreditAmount = totalAmount
+  const vatAmount = Math.round(totalAmount * 0.1)
+  const paidCreditAmount = estimate?.paidCreditAmount ?? (totalAmount + vatAmount)
   const balance = credits?.balance ?? credits?.amount ?? 0
   const insufficientBalance = balance < paidCreditAmount
 
@@ -244,11 +245,15 @@ export default function Order() {
                   <span>{t('order.shippingFee')}</span>
                   <span>{t('currency', { amount: shippingFee.toLocaleString() })}</span>
                 </div>
-                <div className="border-t border-[#E5E5E3] pt-3 mt-3 flex justify-between text-[#1A1A1A]">
-                  <span className="font-medium">{t('order.total')}</span>
-                  <span className="font-semibold">{t('currency', { amount: totalAmount.toLocaleString() })}</span>
+                <div className="border-t border-[#E5E5E3] pt-3 mt-3 flex justify-between text-[#6B6B6B]">
+                  <span>{t('order.total')}</span>
+                  <span>{t('currency', { amount: totalAmount.toLocaleString() })}</span>
                 </div>
-                <div className="flex justify-between font-bold text-[#1A1A1A]">
+                <div className="flex justify-between text-[#6B6B6B]">
+                  <span>부가세 (10%)</span>
+                  <span>{t('currency', { amount: vatAmount.toLocaleString() })}</span>
+                </div>
+                <div className="border-t border-[#E5E5E3] pt-3 mt-3 flex justify-between font-bold text-[#1A1A1A]">
                   <span>{t('order.paidAmount')} <span className="font-normal text-xs text-[#ACACAC]">{t('order.vatIncluded')}</span></span>
                   <span className="text-primary text-lg">{t('currency', { amount: paidCreditAmount.toLocaleString() })}</span>
                 </div>

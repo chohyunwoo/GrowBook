@@ -23,6 +23,8 @@ const proxyRouter = require('./routes/proxy')
 const videoRouter = require('./routes/video')
 const adminRouter = require('./routes/admin')
 const shareRouter = require('./routes/share')
+const reviewsRouter = require('./routes/reviews')
+const communityRouter = require('./routes/community')
 
 const app = express()
 
@@ -54,6 +56,8 @@ app.use('/api/proxy', proxyRouter)
 app.use('/api/video', videoRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/share', shareRouter)
+app.use('/api/reviews', reviewsRouter)
+app.use('/api/community', communityRouter)
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _next) => {

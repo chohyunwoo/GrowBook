@@ -3,7 +3,9 @@
   "nav": {
     "myPage": "마이페이지",
     "logout": "로그아웃",
-    "login": "로그인"
+    "login": "로그인",
+    "community": "커뮤니티",
+    "admin": "관리자"
   },
   "buttons": {
     "next": "다음",
@@ -315,5 +317,31 @@
     "s6Title": "6. 이용자 권리",
     "s6Content": "이용자는 언제든지 자신의 개인정보를 조회, 수정, 삭제할 수 있습니다. 개인정보 처리에 대한 동의를 철회할 수 있으며, 이 경우 서비스 이용이 제한될 수 있습니다. 개인정보 관련 문의는 고객센터로 연락해주세요.",
     "effectiveDate": "본 방침은 2025년 4월 1일부터 시행됩니다."
+  },
+  "community": {
+    "title": "포토북 커뮤니티",
+    "subtitle": "다른 사람들의 소중한 순간을 구경해보세요",
+    "gallery": "포토북 갤러리",
+    "reviews": "리뷰",
+    "write": "글쓰기",
+    "latest": "최신순",
+    "popular": "인기순",
+    "all": "전체",
+    "child": "아이 성장",
+    "pet": "반려동물",
+    "travel": "여행",
+    "memory": "추억",
+    "like": "좋아요",
+    "comment": "댓글",
+    "delete": "삭제",
+    "writePost": "게시글 작성",
+    "title_placeholder": "제목을 입력해주세요",
+    "content_placeholder": "내용을 입력해주세요",
+    "rating": "별점",
+    "submit": "등록",
+    "cancel": "취소",
+    "noPost": "아직 게시글이 없어요",
+    "noReview": "아직 리뷰가 없어요",
+    "backToList": "목록으로"
   }
 }

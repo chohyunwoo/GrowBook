@@ -287,4 +287,223 @@ router.get(
   })
 )
 
+// ── 7. 커뮤니티 게시글 목록 조회 ────────────────────────────────
+/**
+ * @swagger
+ * /api/admin/community:
+ *   get:
+ *     summary: 전체 커뮤니티 게시글 목록 (관리자)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: 게시글 목록 조회 성공
+ */
+router.get(
+  '/community',
+  asyncHandler(async (req, res) => {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1)
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit, 10) || 10))
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+
+    const { data, error, count } = await supabase
+      .from('community_posts')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (error) {
+      return res.status(500).json({ success: false, error: 'DB_ERROR', message: '게시글 목록 조회 중 오류가 발생했습니다.' })
+    }
+
+    res.json({ success: true, data, totalCount: count, totalPages: Math.ceil(count / limit) })
+  })
+)
+
+// ── 8. 커뮤니티 게시글 강제 삭제 ────────────────────────────────
+/**
+ * @swagger
+ * /api/admin/community/{postId}:
+ *   delete:
+ *     summary: 게시글 강제 삭제 (관리자)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 게시글 삭제 성공
+ */
+router.delete(
+  '/community/:postId',
+  asyncHandler(async (req, res) => {
+    const { postId } = req.params
+
+    const { data: post, error: postError } = await supabase
+      .from('community_posts')
+      .select('id')
+      .eq('id', postId)
+      .single()
+
+    if (postError || !post) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '게시글을 찾을 수 없습니다.' })
+    }
+
+    await supabase.from('community_comments').delete().eq('post_id', postId)
+    await supabase.from('community_post_likes').delete().eq('post_id', postId)
+    await supabase.from('community_posts').delete().eq('id', postId)
+
+    res.json({ success: true })
+  })
+)
+
+// ── 9. 전체 리뷰 목록 조회 ─────────────────────────────────────
+/**
+ * @swagger
+ * /api/admin/reviews:
+ *   get:
+ *     summary: 전체 리뷰 목록 (관리자)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: 리뷰 목록 조회 성공
+ */
+router.get(
+  '/reviews',
+  asyncHandler(async (req, res) => {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1)
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit, 10) || 10))
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+
+    const { data: reviews, error, count } = await supabase
+      .from('reviews')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (error) {
+      return res.status(500).json({ success: false, error: 'DB_ERROR', message: '리뷰 목록 조회 중 오류가 발생했습니다.' })
+    }
+
+    // 작성자 정보 조회
+    const userIds = [...new Set(reviews.map((r) => r.user_id))]
+    const profileMap = {}
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', userIds)
+      if (profiles) {
+        for (const p of profiles) {
+          profileMap[p.id] = p
+        }
+      }
+    }
+
+    // 포토북 타입 조회
+    const orderUids = [...new Set(reviews.map((r) => r.order_uid))]
+    const orderMap = {}
+    if (orderUids.length > 0) {
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('order_uid, album_type')
+        .in('order_uid', orderUids)
+      if (orders) {
+        for (const o of orders) {
+          orderMap[o.order_uid] = o
+        }
+      }
+    }
+
+    const data = reviews.map((review) => ({
+      ...review,
+      author_name: profileMap[review.user_id]?.name || '익명',
+      author_email: profileMap[review.user_id]?.email || '',
+      album_type: orderMap[review.order_uid]?.album_type || null,
+    }))
+
+    // 평균 별점 계산
+    const { data: allRatings } = await supabase.from('reviews').select('rating')
+    let averageRating = 0
+    if (allRatings?.length) {
+      const sum = allRatings.reduce((acc, r) => acc + r.rating, 0)
+      averageRating = Math.round((sum / allRatings.length) * 10) / 10
+    }
+
+    res.json({ success: true, data, averageRating, totalCount: count, totalPages: Math.ceil(count / limit) })
+  })
+)
+
+// ── 10. 리뷰 강제 삭제 ─────────────────────────────────────────
+/**
+ * @swagger
+ * /api/admin/reviews/{reviewId}:
+ *   delete:
+ *     summary: 리뷰 강제 삭제 (관리자)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 리뷰 삭제 성공
+ */
+router.delete(
+  '/reviews/:reviewId',
+  asyncHandler(async (req, res) => {
+    const { reviewId } = req.params
+
+    const { data: review, error: reviewError } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('id', reviewId)
+      .single()
+
+    if (reviewError || !review) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '리뷰를 찾을 수 없습니다.' })
+    }
+
+    await supabase.from('reviews').delete().eq('id', reviewId)
+
+    res.json({ success: true })
+  })
+)
+
 module.exports = router

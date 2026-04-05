@@ -24,6 +24,7 @@ async function saveOrder(userId, orderData) {
       album_title: orderData.albumTitle,
       album_type: orderData.albumType,
       status: orderData.status,
+      quantity: orderData.quantity || 1,
     })
     .select()
     .single()

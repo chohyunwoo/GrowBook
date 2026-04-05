@@ -79,6 +79,12 @@ export default function Home() {
         </Link>
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
+          <Link
+            to="/community"
+            className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A] font-medium transition-colors duration-200"
+          >
+            {t('nav.community')}
+          </Link>
           {user ? (
             <>
               {isAdmin && (
@@ -86,7 +92,7 @@ export default function Home() {
                   to="/admin"
                   className="text-sm text-primary hover:text-primary-dark font-medium transition-colors duration-200"
                 >
-                  관리자
+                  {t('nav.admin')}
                 </Link>
               )}
               <Link
