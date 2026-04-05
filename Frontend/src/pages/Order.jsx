@@ -58,6 +58,7 @@ export default function Order() {
   const [estimate, setEstimate] = useState(null)
   const [credits, setCredits] = useState(null)
   const [loadingData, setLoadingData] = useState(true)
+  const [estimateLoading, setEstimateLoading] = useState(false)
 
   // Tabs
   const [activeTab, setActiveTab] = useState('saved')
@@ -93,6 +94,8 @@ export default function Order() {
 
   // Fetch estimate + credits on mount and when quantity changes
   useEffect(() => {
+    const isInitial = estimate === null
+    if (!isInitial) setEstimateLoading(true)
     const fetch = async () => {
       try {
         const [estRes, credRes] = await Promise.all([
@@ -105,6 +108,7 @@ export default function Order() {
         setError(t('errors.loadFailed'))
       } finally {
         setLoadingData(false)
+        setEstimateLoading(false)
       }
     }
     fetch()
@@ -201,7 +205,7 @@ export default function Order() {
   const shippingFee = estimate?.shippingFee ?? estimate?.shippingPrice ?? estimate?.shipping ?? 0
   const totalAmount = productAmount + shippingFee
   const vatAmount = Math.round(totalAmount * 0.1)
-  const paidCreditAmount = estimate?.paidCreditAmount ?? (totalAmount + vatAmount)
+  const paidCreditAmount = Math.round(totalAmount * 1.1)
   const balance = credits?.balance ?? credits?.amount ?? 0
   const insufficientBalance = balance < paidCreditAmount
 
@@ -236,7 +240,7 @@ export default function Order() {
                 ))}
               </div>
             ) : (
-              <div className="space-y-2.5 text-sm">
+              <div className={`space-y-2.5 text-sm ${estimateLoading ? 'opacity-50' : ''} transition-opacity duration-200`}>
                 <div className="flex justify-between text-[#6B6B6B]">
                   <span>{t('order.productAmount')} ({t('currency', { amount: unitPrice.toLocaleString() })} × {quantity}권)</span>
                   <span>{t('currency', { amount: productAmount.toLocaleString() })}</span>
