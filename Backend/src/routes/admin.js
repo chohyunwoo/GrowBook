@@ -3,7 +3,6 @@ const { SweetbookClient } = require('../sdk/client')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
 const { supabase } = require('../services/supabaseService')
-const { ServiceError } = require('../services/sweetbookService')
 
 const router = express.Router()
 
@@ -258,10 +257,6 @@ router.get(
       supabase.from('orders').select('status'),
     ])
 
-    console.log('[admin/dashboard] creditsResult:', creditsResult)
-    console.log('[admin/dashboard] ordersResult.data:', ordersResult.data)
-    console.log('[admin/dashboard] ordersResult.error:', ordersResult.error)
-
     if (!creditsResult) {
       return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '충전금 조회 중 오류가 발생했습니다.' })
     }
@@ -278,7 +273,6 @@ router.get(
 
     const credits = { balance: creditsResult.balance }
     const stats = { totalCount, byStatus }
-    console.log('[admin/dashboard] response:', { credits, stats })
 
     res.json({
       success: true,

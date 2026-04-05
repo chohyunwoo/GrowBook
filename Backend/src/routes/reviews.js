@@ -68,10 +68,6 @@ router.post(
     })
   },
   asyncHandler(async (req, res) => {
-    console.log('[reviews POST] req.body:', req.body)
-    console.log('[reviews POST] req.files:', req.files)
-    console.log('[reviews POST] multer 적용 여부 확인')
-
     const token = req.headers.authorization?.replace('Bearer ', '')
     if (!token) {
       return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
@@ -153,8 +149,6 @@ router.post(
         imageUrls.push(urlData.publicUrl)
       }
     }
-
-    console.log('[reviews POST] imageUrls:', imageUrls)
 
     const { data, error } = await supabase
       .from('reviews')

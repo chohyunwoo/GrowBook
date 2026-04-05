@@ -65,9 +65,6 @@ async function getAuthUser(req) {
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    console.log('[community] GET 요청 받음')
-    console.log('[community] query params:', req.query)
-
     const { type, sort } = req.query
     const page = Math.max(1, parseInt(req.query.page, 10) || 1)
     const limit = Math.max(1, Math.min(50, parseInt(req.query.limit, 10) || 10))
@@ -91,11 +88,8 @@ router.get(
     const { data, error, count } = await query.range(from, to)
 
     if (error) {
-      console.error('[community] 에러:', error.message, error)
       return res.status(500).json({ success: false, error: 'DB_ERROR', message: '게시글 목록 조회 중 오류가 발생했습니다.' })
     }
-
-    console.log('[community GET] first post image_urls:', JSON.stringify(data[0]?.image_urls), typeof data[0]?.image_urls)
 
     // 댓글 수 별도 집계
     const postIds = data.map((p) => p.id)
@@ -178,9 +172,6 @@ router.post(
     })
   },
   asyncHandler(async (req, res) => {
-    console.log('[community POST] req.body:', req.body)
-    console.log('[community POST] req.files:', req.files)
-
     const user = await getAuthUser(req)
     if (!user) {
       return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
@@ -199,9 +190,6 @@ router.post(
       ;({ title, content, albumType, rating, orderUid } = parsed)
     }
 
-    console.log('[community POST] title:', title)
-    console.log('[community POST] content:', content)
-
     if (!title || !content) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '제목과 내용은 필수입니다.' })
     }
@@ -216,7 +204,6 @@ router.post(
     }
     const imageUrls = []
     if (imageFiles.length) {
-      console.log('[community POST] Storage 업로드 시작')
       for (let index = 0; index < imageFiles.length; index++) {
         const file = imageFiles[index]
         const ext = (file.originalname.split('.').pop() || 'jpg').toLowerCase()

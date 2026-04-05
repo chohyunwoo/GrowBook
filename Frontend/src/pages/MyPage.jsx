@@ -3,20 +3,10 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { signOut, supabase } from '../lib/supabase'
-import { getOrder, cancelOrder, updateShipping, getMyOrders } from '../api/orderApi'
+import { cancelOrder, updateShipping, getMyOrders } from '../api/orderApi'
 import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm } from '../utils/shipping'
 import { getReview, createReview } from '../api/reviewApi'
 import ShippingManager from './ShippingManager'
-
-const STORAGE_KEY = 'my_order_uids'
-
-function loadOrderUids() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
-  } catch {
-    return []
-  }
-}
 
 export default function MyPage() {
   const { t } = useTranslation()
@@ -74,7 +64,6 @@ export default function MyPage() {
         : null
       if (accessToken) {
         const res = await getMyOrders(accessToken, { page, limit: ORDERS_PER_PAGE })
-        console.log('[MyPage] getMyOrders response:', res.data)
         const body = res.data?.data || res.data || {}
         const raw = Array.isArray(body) ? body : (body.items || body.orders || [])
         const mapped = raw.map((o) => ({
@@ -85,9 +74,6 @@ export default function MyPage() {
           albumType: o.albumType || o.album_type,
           createdAt: o.createdAt || o.ordered_at || o.orderedAt || o.created_at,
         }))
-        console.log('[MyPage] orders:', mapped)
-        console.log('[MyPage] first order status:', mapped[0]?.status, typeof mapped[0]?.status)
-        console.log('[MyPage] first order full:', JSON.stringify(mapped[0]))
         setOrders(mapped)
         const pages = (body.totalPages ?? body.total_pages ?? Math.ceil((body.totalCount ?? body.total_count ?? mapped.length) / ORDERS_PER_PAGE)) || 1
         setTotalPages(pages)

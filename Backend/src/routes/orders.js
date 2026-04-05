@@ -85,9 +85,7 @@ router.get(
     const page = Math.max(1, parseInt(req.query.page, 10) || 1)
     const limit = Math.max(1, Math.min(50, parseInt(req.query.limit, 10) || 5))
 
-    console.log('[orders/my] userId:', user.id)
     const { data: orders, totalCount } = await getOrders(user.id, page, limit)
-    console.log('[orders/my] orders:', orders)
     res.json({
       success: true,
       data: orders,
