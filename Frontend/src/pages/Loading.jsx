@@ -65,6 +65,8 @@ export default function Loading() {
         bookData.coverImageFileName = state.coverImageFileName
       }
 
+      console.log('[Loading] bookData:', bookData)
+
       const highlightImages = state.highlights.map((h) => h.imageFile || null)
 
       const bookRes = await createBookWithImages(bookData, highlightImages, state.coverImageFile)

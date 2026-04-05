@@ -4,11 +4,11 @@ export function estimateOrder(bookUid) {
   return client.post('/api/orders/estimate', { bookUid })
 }
 
-export function createOrder(bookUid, shipping, accessToken, title) {
+export function createOrder(bookUid, shipping, accessToken, title, type) {
   const config = accessToken
     ? { headers: { Authorization: `Bearer ${accessToken}` } }
     : {}
-  return client.post('/api/orders', { bookUid, shipping, title }, config)
+  return client.post('/api/orders', { bookUid, shipping, title, type }, config)
 }
 
 export function getOrder(orderUid) {

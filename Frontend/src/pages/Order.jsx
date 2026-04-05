@@ -130,7 +130,7 @@ export default function Order() {
         ? (await supabase.auth.getSession())?.data?.session?.access_token
         : null
       const title = state.generatedStory?.title || state.name || ''
-      const res = await createOrder(state.bookUid, shipping, accessToken, title)
+      const res = await createOrder(state.bookUid, shipping, accessToken, title, state.type)
       const orderUid = res.data?.data?.orderUid || res.data?.orderUid || res.data?.uid
       dispatch({ type: 'SET_ORDER_UID', payload: orderUid })
       // Save to localStorage for MyPage order history

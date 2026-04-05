@@ -25,6 +25,8 @@ export default function MyPage() {
   const [orders, setOrders] = useState([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState(null)
+  const [cancelModal, setCancelModal] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
   const [activeTab, setActiveTab] = useState('orders')
 
   useEffect(() => {
@@ -52,10 +54,16 @@ export default function MyPage() {
     setOrdersLoading(false)
   }
 
+  const openCancelModal = (orderUid) => {
+    setCancelReason('')
+    setCancelModal(orderUid)
+  }
+
   const handleCancel = async (orderUid) => {
+    setCancelModal(null)
     setCancellingId(orderUid)
     try {
-      await cancelOrder(orderUid, t('complete.cancelReasonPlaceholder'))
+      await cancelOrder(orderUid, cancelReason || t('complete.cancelReasonPlaceholder'))
       await fetchOrders()
     } catch {
       /* ignore */
@@ -189,7 +197,7 @@ export default function MyPage() {
                         )}
                         {canCancel && (
                           <button
-                            onClick={() => handleCancel(order.orderUid)}
+                            onClick={() => openCancelModal(order.orderUid)}
                             disabled={isCancelling}
                             className={`text-xs font-medium transition-colors duration-200 ${
                               isCancelling
@@ -212,6 +220,33 @@ export default function MyPage() {
           {activeTab === 'shipping' && <ShippingManager embedded />}
         </div>
       </main>
+      {/* Cancel Reason Modal */}
+      {cancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-4">{t('myPage.cancelOrder')}</h3>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder={t('complete.cancelReasonPlaceholder')}
+              rows={3}
+              className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200 resize-none mb-4"
+            />
+            <button
+              onClick={() => handleCancel(cancelModal)}
+              className="w-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-3 rounded-xl transition-colors duration-200 cursor-pointer mb-3"
+            >
+              {t('myPage.cancelOrder')}
+            </button>
+            <button
+              onClick={() => setCancelModal(null)}
+              className="w-full text-center text-sm text-[#6B6B6B] hover:text-[#1A1A1A] font-medium py-2 cursor-pointer transition-colors duration-200"
+            >
+              {t('buttons.close')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
