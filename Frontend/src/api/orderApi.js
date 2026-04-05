@@ -15,9 +15,10 @@ export function getOrder(orderUid) {
   return client.get(`/api/orders/${orderUid}`)
 }
 
-export function getMyOrders(accessToken) {
+export function getMyOrders(accessToken, params = {}) {
   return client.get('/api/orders/my', {
     headers: { Authorization: `Bearer ${accessToken}` },
+    params,
   })
 }
 

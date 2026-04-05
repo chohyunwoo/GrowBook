@@ -37,15 +37,19 @@ async function saveOrder(userId, orderData) {
  * @param {string} userId
  * @returns {Promise<Array>}
  */
-async function getOrders(userId) {
-  const { data, error } = await supabase
+async function getOrders(userId, page = 1, limit = 5) {
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  const { data, error, count } = await supabase
     .from('orders')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('user_id', userId)
     .order('ordered_at', { ascending: false })
+    .range(from, to)
 
   if (error) throw error
-  return data
+  return { data, totalCount: count }
 }
 
 /**

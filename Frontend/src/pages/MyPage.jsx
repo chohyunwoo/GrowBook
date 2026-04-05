@@ -26,6 +26,7 @@ export default function MyPage() {
   const [orders, setOrders] = useState([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const ORDERS_PER_PAGE = 5
   const [cancellingId, setCancellingId] = useState(null)
   const [cancelModal, setCancelModal] = useState(null)
@@ -50,21 +51,25 @@ export default function MyPage() {
       navigate('/login', { replace: true })
       return
     }
-    fetchOrders()
+    fetchOrders(1)
   }, [user])
 
-  const fetchOrders = async () => {
+  useEffect(() => {
+    if (user) fetchOrders(currentPage)
+  }, [currentPage])
+
+  const fetchOrders = async (page = 1) => {
     setOrdersLoading(true)
     try {
       const accessToken = supabase
         ? (await supabase.auth.getSession())?.data?.session?.access_token
         : null
       if (accessToken) {
-        const res = await getMyOrders(accessToken)
+        const res = await getMyOrders(accessToken, { page, limit: ORDERS_PER_PAGE })
         console.log('[MyPage] getMyOrders response:', res.data)
-        const raw = res.data?.data || res.data || []
-        const list = Array.isArray(raw) ? raw : (raw.items || raw.orders || [])
-        const mapped = list.map((o) => ({
+        const body = res.data?.data || res.data || {}
+        const raw = Array.isArray(body) ? body : (body.items || body.orders || [])
+        const mapped = raw.map((o) => ({
           ...o,
           orderUid: o.orderUid || o.order_uid || o.uid,
           status: o.status ?? o.orderStatus ?? o.order_status,
@@ -76,10 +81,11 @@ export default function MyPage() {
         console.log('[MyPage] first order status:', mapped[0]?.status, typeof mapped[0]?.status)
         console.log('[MyPage] first order full:', JSON.stringify(mapped[0]))
         setOrders(mapped)
-        setCurrentPage(1)
+        const pages = (body.totalPages ?? body.total_pages ?? Math.ceil((body.totalCount ?? body.total_count ?? mapped.length) / ORDERS_PER_PAGE)) || 1
+        setTotalPages(pages)
       } else {
         setOrders([])
-        setCurrentPage(1)
+        setTotalPages(1)
       }
     } catch {
       setOrders([])
@@ -249,8 +255,9 @@ export default function MyPage() {
                   </Link>
                 </div>
               ) : (
+                <>
                 <div className="space-y-3">
-                  {orders.slice((currentPage - 1) * ORDERS_PER_PAGE, currentPage * ORDERS_PER_PAGE).map((order, index) => {
+                  {orders.map((order, index) => {
                     const status = Number(order.status ?? order.orderStatus)
                     const statusText = t(`orderStatus.${status}`, t('checking'))
                     const canCancel = status === 20 || status === 25
@@ -315,48 +322,46 @@ export default function MyPage() {
                   })}
                 </div>
                 {/* Pagination */}
-                {orders.length > ORDERS_PER_PAGE && (() => {
-                  const totalPages = Math.ceil(orders.length / ORDERS_PER_PAGE)
-                  return (
-                    <div className="flex items-center justify-center gap-1 mt-6">
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1 mt-6">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 ${
+                        currentPage === 1
+                          ? 'text-[#D1D1CF] cursor-not-allowed'
+                          : 'text-[#6B6B6B] hover:bg-[#F0F0EE] cursor-pointer'
+                      }`}
+                    >
+                      &lt;
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 ${
-                          currentPage === 1
-                            ? 'text-[#D1D1CF] cursor-not-allowed'
-                            : 'text-[#6B6B6B] hover:bg-[#F0F0EE] cursor-pointer'
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer ${
+                          page === currentPage
+                            ? 'bg-primary text-white'
+                            : 'bg-white text-[#6B6B6B] border border-[#E5E5E3] hover:bg-[#F7F7F5]'
                         }`}
                       >
-                        &lt;
+                        {page}
                       </button>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer ${
-                            page === currentPage
-                              ? 'bg-primary text-white'
-                              : 'bg-white text-[#6B6B6B] border border-[#E5E5E3] hover:bg-[#F7F7F5]'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 ${
-                          currentPage === totalPages
-                            ? 'text-[#D1D1CF] cursor-not-allowed'
-                            : 'text-[#6B6B6B] hover:bg-[#F0F0EE] cursor-pointer'
-                        }`}
-                      >
-                        &gt;
-                      </button>
-                    </div>
-                  )
-                })()}
+                    ))}
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-200 ${
+                        currentPage === totalPages
+                          ? 'text-[#D1D1CF] cursor-not-allowed'
+                          : 'text-[#6B6B6B] hover:bg-[#F0F0EE] cursor-pointer'
+                      }`}
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </>
           )}
