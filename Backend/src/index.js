@@ -21,6 +21,7 @@ const ordersRouter = require('./routes/orders')
 const creditsRouter = require('./routes/credits')
 const proxyRouter = require('./routes/proxy')
 const videoRouter = require('./routes/video')
+const adminRouter = require('./routes/admin')
 
 const app = express()
 
@@ -50,6 +51,7 @@ app.use('/api/orders', ordersRouter)
 app.use('/api/credits', creditsRouter)
 app.use('/api/proxy', proxyRouter)
 app.use('/api/video', videoRouter)
+app.use('/api/admin', adminRouter)
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _next) => {

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { getOrder } from '../api/orderApi'
-import { signOut } from '../lib/supabase'
+import { signOut, supabase } from '../lib/supabase'
+import { getAdminStats } from '../api/adminApi'
 import Footer from '../components/Footer'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 
@@ -17,6 +18,23 @@ export default function Home() {
   const [orderResult, setOrderResult] = useState(null)
   const [orderLoading, setOrderLoading] = useState(false)
   const [orderError, setOrderError] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!supabase) return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { setIsAdmin(false); return }
+        await getAdminStats(session.access_token)
+        setIsAdmin(true)
+      } catch {
+        setIsAdmin(false)
+      }
+    }
+    if (user) checkAdmin()
+    else setIsAdmin(false)
+  }, [user])
 
   const handleOrderLookup = async () => {
     if (!orderUidInput.trim()) return
@@ -63,6 +81,14 @@ export default function Home() {
           <LanguageSwitcher />
           {user ? (
             <>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="text-sm text-primary hover:text-primary-dark font-medium transition-colors duration-200"
+                >
+                  관리자
+                </Link>
+              )}
               <Link
                 to="/mypage"
                 className="text-sm text-primary hover:text-primary-dark font-medium transition-colors duration-200"
