@@ -419,7 +419,11 @@ GrowBook은 AI가 스토리와 캡션을 자동 생성해주어 누구나 쉽게
 
 ### 시연 영상
 
-(시연 영상 링크 추가 예정)
+### 시연 영상
+
+[🎬 시연 영상 보기](<img width="650" height="620" alt="image" src="https://github.com/user-attachments/assets/371c3144-927a-4bea-9696-a5f1e1795ba3" />
+)
+
 ```
 
 ---
