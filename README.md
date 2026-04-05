@@ -18,12 +18,15 @@
 - 🖼️ 포토북 미리보기에서 사진 추가 및 특별한 순간 직접 입력
 - 🤖 사용자 입력 기반 Claude AI 감성 스토리 자동 생성 (제목 + 부제 + 스토리)
 - 📦 Sweetbook Book Print API로 실제 포토북 주문 및 배송
+- 🛒 포토북 수량 선택 기능 (1~10권, 부가세 포함 금액 표시)
 - 🎬 사진과 입력 내용으로 슬라이드쇼 영상 자동 생성 (배경음악 추가 가능)
 - 🔗 결제 완료 후 포토북 공유 링크 생성 (30일 유효, 로그인 없이 접근 가능)
+- 👥 포토북 커뮤니티 (게시글 작성, 좋아요, 댓글, 이미지 첨부)
+- ⭐ 포토북 리뷰 및 별점 기능 (배송 완료 후 작성)
 - 🌐 한국어 / 영어 다국어 지원
 - 👤 구글 로그인 및 주문 내역 조회
 - 📮 카카오 주소 검색 연동 배송지 관리 및 변경
-- 🔐 관리자 페이지 (충전금 잔액, 전체 주문 현황, 상태별 통계 그래프, 사용자 관리)
+- 🔐 관리자 페이지 (충전금 잔액, 전체 주문 현황, 상태별 통계 그래프, 커뮤니티/리뷰 관리)
 
 ---
 
@@ -55,6 +58,7 @@
 - Supabase Auth (구글 로그인)
 - 카카오 우편번호 서비스 (배송지 검색)
 
+
 ---
 
 ## 프로젝트 구조
@@ -72,7 +76,9 @@ growbook/
 │   │   │   ├── templates.js        # 템플릿 API
 │   │   │   ├── video.js            # 슬라이드쇼 영상 생성 API
 │   │   │   ├── admin.js            # 관리자 API
-│   │   │   └── share.js            # 공유 링크 API
+│   │   │   ├── share.js            # 공유 링크 API
+│   │   │   ├── community.js        # 커뮤니티 API
+│   │   │   └── reviews.js          # 리뷰 API
 │   │   ├── services/
 │   │   │   ├── claudeService.js    # Claude API 호출
 │   │   │   ├── sweetbookService.js # Book Print SDK 호출
@@ -102,6 +108,9 @@ growbook/
 │   │   │   ├── ShippingManager.jsx
 │   │   │   ├── Admin.jsx           # 관리자 페이지
 │   │   │   ├── SharedAlbum.jsx     # 공유 앨범 페이지
+│   │   │   ├── Community.jsx       # 커뮤니티 페이지
+│   │   │   ├── CommunityPost.jsx   # 커뮤니티 게시글 상세
+│   │   │   ├── ReviewPost.jsx      # 리뷰 상세 페이지
 │   │   │   ├── Terms.jsx
 │   │   │   └── Privacy.jsx
 │   │   ├── components/
@@ -115,7 +124,9 @@ growbook/
 │   │   │   ├── templateApi.js
 │   │   │   ├── videoApi.js         # 영상 생성 API
 │   │   │   ├── adminApi.js         # 관리자 API
-│   │   │   └── shareApi.js         # 공유 링크 API
+│   │   │   ├── shareApi.js         # 공유 링크 API
+│   │   │   ├── communityApi.js     # 커뮤니티 API
+│   │   │   └── reviewApi.js        # 리뷰 API
 │   │   ├── data/
 │   │   │   └── sampleStories.js    # 샘플 체험 데이터
 │   │   ├── locales/
@@ -280,7 +291,12 @@ npm run dev
        `https://<your-project-ref>.supabase.co/auth/v1/callback`
    - Supabase Google Provider에 Client ID, Client Secret 입력 후 저장
 
-3. 아래 SQL로 테이블 생성:
+3. Storage 버킷 생성:
+   - Supabase 대시보드 → Storage → New Bucket
+   - `community-images` (Public: ON)
+   - `review-images` (Public: ON)
+
+4. 아래 SQL로 테이블 생성:
 ```sql
 -- orders 테이블
 create table orders (
@@ -290,6 +306,7 @@ create table orders (
   album_title text,
   album_type text,
   status integer default 20,
+  quantity integer default 1,
   ordered_at timestamp with time zone default now()
 );
 
@@ -327,6 +344,127 @@ create policy "Users can update own profile"
   on profiles for update
   using (auth.uid() = id);
 
+-- shared_albums 테이블 (공유 링크)
+create table shared_albums (
+  id uuid default gen_random_uuid() primary key,
+  share_code text unique not null,
+  user_id uuid references auth.users(id),
+  order_uid text,
+  title text,
+  subtitle text,
+  story text,
+  album_type text,
+  created_at timestamp with time zone default now(),
+  expires_at timestamp with time zone default (now() + interval '30 days')
+);
+
+alter table shared_albums enable row level security;
+
+create policy "Anyone can view shared albums"
+  on shared_albums for select
+  using (expires_at > now());
+
+create policy "Users can insert own shared albums"
+  on shared_albums for insert
+  with check (auth.uid() = user_id);
+
+-- community_posts 테이블
+create table community_posts (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id),
+  author_name text,
+  title text not null,
+  content text,
+  album_type text,
+  rating integer check (rating >= 1 and rating <= 5),
+  order_uid text,
+  likes integer default 0,
+  image_urls text[],
+  created_at timestamp with time zone default now()
+);
+
+alter table community_posts enable row level security;
+
+create policy "Anyone can view posts"
+  on community_posts for select using (true);
+
+create policy "Users can insert own posts"
+  on community_posts for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own posts"
+  on community_posts for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own posts"
+  on community_posts for delete
+  using (auth.uid() = user_id);
+
+-- community_comments 테이블
+create table community_comments (
+  id uuid default gen_random_uuid() primary key,
+  post_id uuid references community_posts(id) on delete cascade,
+  user_id uuid references auth.users(id),
+  author_name text,
+  content text not null,
+  created_at timestamp with time zone default now()
+);
+
+alter table community_comments enable row level security;
+
+create policy "Anyone can view comments"
+  on community_comments for select using (true);
+
+create policy "Users can insert own comments"
+  on community_comments for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete own comments"
+  on community_comments for delete
+  using (auth.uid() = user_id);
+
+-- community_post_likes 테이블
+create table community_post_likes (
+  id uuid default gen_random_uuid() primary key,
+  post_id uuid references community_posts(id) on delete cascade,
+  user_id uuid references auth.users(id),
+  created_at timestamp with time zone default now(),
+  unique(post_id, user_id)
+);
+
+alter table community_post_likes enable row level security;
+
+create policy "Anyone can view post likes"
+  on community_post_likes for select using (true);
+
+create policy "Users can insert own likes"
+  on community_post_likes for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete own likes"
+  on community_post_likes for delete
+  using (auth.uid() = user_id);
+
+-- reviews 테이블
+create table reviews (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id),
+  order_uid text not null unique,
+  rating integer not null check (rating >= 1 and rating <= 5),
+  content text,
+  image_urls text[],
+  created_at timestamp with time zone default now()
+);
+
+alter table reviews enable row level security;
+
+create policy "Anyone can view reviews"
+  on reviews for select using (true);
+
+create policy "Users can insert own reviews"
+  on reviews for insert
+  with check (auth.uid() = user_id);
+
 -- 구글 로그인 시 profiles 테이블에 자동 저장하는 트리거
 create or replace function handle_new_user()
 returns trigger as $$
@@ -361,7 +499,6 @@ on conflict (id) do nothing;
 update profiles set is_admin = true
 where email = 'your_admin_email@gmail.com';
 ```
-
 ---
 
 ## 개발 환경
@@ -413,7 +550,8 @@ GrowBook은 AI가 스토리와 캡션을 자동 생성해주어 누구나 쉽게
 
 ### 더 시간이 있었다면 추가했을 기능
 
-- 사진 자동 레이아웃 배치 AI
+- 쿠폰 / 할인 코드 기능 (특별 할인 이벤트, 첫 구매 할인 등)
+- 포토북 수량 다중 할인 적용 (2권 이상 주문 시 할인)
 - 슬라이드쇼 영상 유료화 (현재는 포토북 미리보기 단계에서 무료 제공, 실제 서비스에서는 주문 완료 후에만 다운로드 가능하도록 개선 필요)
 - 관리자 페이지 고도화 (주문 상태 변경 — Sweetbook 파트너 API 제한으로 미구현)
 
