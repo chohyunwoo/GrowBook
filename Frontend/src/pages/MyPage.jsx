@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
-import { signOut } from '../lib/supabase'
-import { getOrder, cancelOrder, updateShipping } from '../api/orderApi'
+import { signOut, supabase } from '../lib/supabase'
+import { getOrder, cancelOrder, updateShipping, getMyOrders } from '../api/orderApi'
 import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm } from '../utils/shipping'
 import ShippingManager from './ShippingManager'
 
@@ -28,6 +28,7 @@ export default function MyPage() {
   const [cancellingId, setCancellingId] = useState(null)
   const [cancelModal, setCancelModal] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
+  const [cancelError, setCancelError] = useState(null)
   const [shippingModal, setShippingModal] = useState(null)
   const [shippingForm, setShippingForm] = useState({
     recipientName: '',
@@ -52,18 +53,33 @@ export default function MyPage() {
 
   const fetchOrders = async () => {
     setOrdersLoading(true)
-    const uids = loadOrderUids()
-    const results = []
-    for (const uid of uids) {
-      try {
-        const res = await getOrder(uid)
-        const data = res.data?.data || res.data
-        results.push({ orderUid: uid, ...data })
-      } catch {
-        results.push({ orderUid: uid, status: null, title: null })
+    try {
+      const accessToken = supabase
+        ? (await supabase.auth.getSession())?.data?.session?.access_token
+        : null
+      if (accessToken) {
+        const res = await getMyOrders(accessToken)
+        console.log('[MyPage] getMyOrders response:', res.data)
+        const raw = res.data?.data || res.data || []
+        const list = Array.isArray(raw) ? raw : (raw.items || raw.orders || [])
+        const mapped = list.map((o) => ({
+          ...o,
+          orderUid: o.orderUid || o.order_uid || o.uid,
+          status: o.status ?? o.orderStatus ?? o.order_status,
+          albumTitle: o.albumTitle || o.album_title,
+          albumType: o.albumType || o.album_type,
+          createdAt: o.createdAt || o.ordered_at || o.orderedAt || o.created_at,
+        }))
+        console.log('[MyPage] orders:', mapped)
+        console.log('[MyPage] first order status:', mapped[0]?.status, typeof mapped[0]?.status)
+        console.log('[MyPage] first order full:', JSON.stringify(mapped[0]))
+        setOrders(mapped)
+      } else {
+        setOrders([])
       }
+    } catch {
+      setOrders([])
     }
-    setOrders(results)
     setOrdersLoading(false)
   }
 
@@ -75,11 +91,15 @@ export default function MyPage() {
   const handleCancel = async (orderUid) => {
     setCancelModal(null)
     setCancellingId(orderUid)
+    setCancelError(null)
     try {
-      await cancelOrder(orderUid, cancelReason || t('complete.cancelReasonPlaceholder'))
+      const accessToken = supabase
+        ? (await supabase.auth.getSession())?.data?.session?.access_token
+        : null
+      await cancelOrder(orderUid, cancelReason || t('complete.cancelReasonPlaceholder'), accessToken)
       await fetchOrders()
     } catch {
-      /* ignore */
+      setCancelError('주문 취소에 실패했어요. 다시 시도해주세요.')
     }
     setCancellingId(null)
   }
@@ -207,6 +227,9 @@ export default function MyPage() {
           {/* Orders Tab */}
           {activeTab === 'orders' && (
             <>
+              {cancelError && (
+                <p className="text-sm text-red-500 mb-4">{cancelError}</p>
+              )}
               {ordersLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -223,21 +246,26 @@ export default function MyPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {orders.map((order) => {
-                    const status = order.status ?? order.orderStatus
+                  {orders.map((order, index) => {
+                    const status = Number(order.status ?? order.orderStatus)
                     const statusText = t(`orderStatus.${status}`, t('checking'))
                     const canCancel = status === 20 || status === 25
                     const isCancelling = cancellingId === order.orderUid
                     return (
                       <div
-                        key={order.orderUid}
+                        key={order.orderUid || order.uid || index}
                         className="bg-white rounded-xl border border-[#E5E5E3] p-4"
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-[#1A1A1A] truncate">
-                              {order.title || order.bookTitle || t('myPage.album')}
+                              {order.album_title || order.albumTitle || order.title || order.bookTitle || t('myPage.album')}
                             </p>
+                            {(order.album_type || order.albumType) && (
+                              <p className="text-xs text-[#6B6B6B] mt-0.5">
+                                {{ child: '아이 성장 포토북', pet: '반려동물 포토북', travel: '여행 포토북', memory: '추억 포토북' }[order.album_type || order.albumType] || '포토북'}
+                              </p>
+                            )}
                             <p className="text-[10px] text-[#ACACAC] font-mono mt-0.5">{order.orderUid}</p>
                           </div>
                           <span className={`flex-shrink-0 ml-3 inline-block px-2.5 py-1 text-[10px] font-semibold rounded-full ${

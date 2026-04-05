@@ -302,11 +302,11 @@ async function getOrder(orderUid) {
  * @param {string} orderUid
  * @returns {Promise<object>}
  */
-async function cancelOrder(orderUid) {
+async function cancelOrder(orderUid, cancelReason = '고객 요청으로 인한 취소') {
   const client = getClient()
 
   try {
-    return await client.orders.cancel(orderUid, '고객 요청으로 인한 취소')
+    return await client.orders.cancel(orderUid, cancelReason)
   } catch (err) {
     handleSweetbookError(err)
   }

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { getOrder, cancelOrder } from '../api/orderApi'
+import { supabase } from '../lib/supabase'
+import { createShareLink } from '../api/shareApi'
 
 function getDeliveryDate(t) {
   const date = new Date()
@@ -26,6 +28,9 @@ export default function Complete() {
   const [cancelling, setCancelling] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelled, setCancelled] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const [shareLink, setShareLink] = useState(null)
+  const [copied, setCopied] = useState(false)
 
   const fetchOrder = async () => {
     if (!state.orderUid) return
@@ -59,7 +64,10 @@ export default function Complete() {
   const handleCancel = async () => {
     setCancelling(true)
     try {
-      await cancelOrder(state.orderUid, cancelReason.trim() || t('complete.cancelReasonPlaceholder'))
+      const accessToken = supabase
+        ? (await supabase.auth.getSession())?.data?.session?.access_token
+        : null
+      await cancelOrder(state.orderUid, cancelReason.trim() || t('complete.cancelReasonPlaceholder'), accessToken)
       setCancelModal(false)
       setCancelled(true)
       setTimeout(() => {
@@ -71,6 +79,37 @@ export default function Complete() {
       setCancelModal(false)
     }
     setCancelling(false)
+  }
+
+  const handleShare = async () => {
+    setSharing(true)
+    setCopied(false)
+    try {
+      const story = state.generatedStory || {}
+      const res = await createShareLink({
+        orderUid: state.orderUid,
+        title: story.title,
+        subtitle: story.subtitle,
+        story: story.story,
+        type: state.type,
+      })
+      const shareCode = res.data?.data?.shareCode || res.data?.shareCode || res.data?.code
+      const link = `${window.location.origin}/share/${shareCode}`
+      setShareLink(link)
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
+    } catch {
+      setError(t('errors.generic'))
+    }
+    setSharing(false)
+  }
+
+  const handleCopyLink = async () => {
+    if (!shareLink) return
+    await navigator.clipboard.writeText(shareLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 3000)
   }
 
   const handleGoHome = () => {
@@ -170,6 +209,33 @@ export default function Complete() {
           >
             {t('complete.goHome')}
           </button>
+
+          {!shareLink ? (
+            <button
+              onClick={handleShare}
+              disabled={sharing}
+              className={`w-full max-w-xs mx-auto border text-sm font-medium py-3 px-8 rounded-xl transition-colors duration-200 ${
+                sharing
+                  ? 'border-[#D1D1CF] text-[#ACACAC] cursor-not-allowed'
+                  : 'border-primary text-primary hover:bg-primary/5 cursor-pointer'
+              }`}
+            >
+              {sharing ? t('order.processing', '처리 중...') : '포토북 공유하기 \uD83D\uDD17'}
+            </button>
+          ) : (
+            <div className="w-full max-w-xs mx-auto">
+              <p className="text-xs text-primary font-medium mb-2">링크가 생성되었어요! (30일간 유효)</p>
+              <div className="flex items-center gap-2 bg-[#F7F7F5] rounded-lg p-2.5 border border-[#E5E5E3]">
+                <p className="flex-1 text-xs text-[#6B6B6B] truncate font-mono">{shareLink}</p>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex-shrink-0 text-xs font-medium text-primary hover:text-primary-dark cursor-pointer transition-colors duration-200"
+                >
+                  {copied ? '복사됨 \u2705' : '복사'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {canCancel && (
             <button

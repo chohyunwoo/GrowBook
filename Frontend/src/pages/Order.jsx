@@ -5,23 +5,36 @@ import { useApp } from '../context/AppContext'
 import { estimateOrder, createOrder } from '../api/orderApi'
 import { getCredits } from '../api/creditsApi'
 import { supabase } from '../lib/supabase'
-import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm } from '../utils/shipping'
+import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm, migrateShippingAddresses } from '../utils/shipping'
 
-const STORAGE_KEY = 'shipping_addresses'
+function getStorageKey(userId) {
+  return userId ? `shippingAddresses_${userId}` : null
+}
 
-function loadAddresses() {
+function loadAddresses(userId) {
+  const key = getStorageKey(userId)
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
+    if (key) {
+      const data = localStorage.getItem(key)
+      if (data) return JSON.parse(data) || []
+    }
+    for (const oldKey of ['shipping_addresses', 'shippingAddresses']) {
+      const fallback = localStorage.getItem(oldKey)
+      if (fallback) return JSON.parse(fallback) || []
+    }
+    return []
   } catch {
     return []
   }
 }
 
-function saveAddressToStorage(addr) {
-  const list = loadAddresses()
+function saveAddressToStorage(userId, addr) {
+  const key = getStorageKey(userId)
+  if (!key) return
+  const list = loadAddresses(userId)
   if (list.length === 0) addr.is_default = true
   list.push(addr)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+  localStorage.setItem(key, JSON.stringify(list))
 }
 
 const EMPTY_FORM = {
@@ -45,7 +58,8 @@ export default function Order() {
 
   // Tabs
   const [activeTab, setActiveTab] = useState('saved')
-  const [savedAddresses, setSavedAddresses] = useState(loadAddresses)
+  const userId = state.user?.id
+  const [savedAddresses, setSavedAddresses] = useState(() => loadAddresses(userId))
   const [selectedAddressId, setSelectedAddressId] = useState(null)
 
   // New address form
@@ -60,12 +74,19 @@ export default function Order() {
   // Insufficient credit modal
   const [creditModal, setCreditModal] = useState(null)
 
+  // Migrate old shipping addresses
+  useEffect(() => {
+    if (!userId) return
+    migrateShippingAddresses(userId)
+    setSavedAddresses(loadAddresses(userId))
+  }, [userId])
+
   // Auto-select default address
   useEffect(() => {
     const def = savedAddresses.find((a) => a.is_default)
     if (def) setSelectedAddressId(def.id)
     else if (savedAddresses.length > 0) setSelectedAddressId(savedAddresses[0].id)
-  }, [])
+  }, [savedAddresses])
 
   // Fetch estimate + credits on mount
   useEffect(() => {
@@ -140,7 +161,7 @@ export default function Order() {
       // Save new address if checked
       if (activeTab === 'new' && saveNewAddress) {
         const newAddr = { ...form, id: Date.now(), is_default: false }
-        saveAddressToStorage(newAddr)
+        saveAddressToStorage(userId, newAddr)
       }
       const accessToken = supabase
         ? (await supabase.auth.getSession())?.data?.session?.access_token

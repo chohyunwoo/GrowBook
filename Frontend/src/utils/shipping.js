@@ -1,3 +1,20 @@
+const LEGACY_KEYS = ['shipping_addresses', 'shippingAddresses']
+
+export function migrateShippingAddresses(userId) {
+  if (!userId) return
+  try {
+    const newKey = `shippingAddresses_${userId}`
+    if (localStorage.getItem(newKey)) return
+    for (const oldKey of LEGACY_KEYS) {
+      const oldData = localStorage.getItem(oldKey)
+      if (oldData) {
+        localStorage.setItem(newKey, oldData)
+        return
+      }
+    }
+  } catch { /* ignore */ }
+}
+
 export function openPostcodeSearch(onComplete) {
   new window.daum.Postcode({
     oncomplete: (data) => {

@@ -3,7 +3,7 @@ const { SweetbookClient } = require('../sdk/client')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
 const { createOrder, estimateOrder, getOrder, cancelOrder, ServiceError } = require('../services/sweetbookService')
-const { supabase, saveOrder, updateOrderStatus } = require('../services/supabaseService')
+const { supabase, saveOrder, getOrders, updateOrderStatus } = require('../services/supabaseService')
 
 const router = express.Router()
 
@@ -52,6 +52,40 @@ router.post(
       }
       return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '예상 금액 조회 중 오류가 발생했습니다.' })
     }
+  })
+)
+
+/**
+ * @swagger
+ * /api/orders/my:
+ *   get:
+ *     summary: 내 주문 목록 조회
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 주문 목록 조회 성공
+ *       401:
+ *         description: 인증 실패
+ */
+router.get(
+  '/my',
+  asyncHandler(async (req, res) => {
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    if (error || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
+    console.log('[orders/my] userId:', user.id)
+    const orders = await getOrders(user.id)
+    console.log('[orders/my] orders:', orders)
+    res.json({ success: true, data: orders })
   })
 )
 
@@ -199,8 +233,45 @@ router.post(
   '/:orderUid/cancel',
   asyncHandler(async (req, res) => {
     const { orderUid } = req.params
+
+    // 1. 인증 확인
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
+    // 2. 본인 확인
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('order_uid')
+      .eq('order_uid', orderUid)
+      .single()
+
+    if (orderError || !order) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '주문을 찾을 수 없습니다.' })
+    }
+
+    const { data: myOrder } = await supabase
+      .from('orders')
+      .select('order_uid')
+      .eq('order_uid', orderUid)
+      .eq('user_id', user.id)
+      .single()
+
+    if (!myOrder) {
+      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '본인의 주문만 취소할 수 있습니다.' })
+    }
+
+    // 3. 취소 사유
+    const { cancelReason } = req.body
+
     try {
-      const result = await cancelOrder(orderUid)
+      const result = await cancelOrder(orderUid, cancelReason)
 
       // Supabase orders 테이블 status → 80 (CANCELLED)
       try {

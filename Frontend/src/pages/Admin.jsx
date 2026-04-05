@@ -62,6 +62,7 @@ export default function Admin() {
   // Dashboard
   const [dashboard, setDashboard] = useState(null)
   const [dashboardLoading, setDashboardLoading] = useState(false)
+  const [todayOrders, setTodayOrders] = useState(0)
 
   // Orders
   const [orders, setOrders] = useState([])
@@ -117,8 +118,14 @@ export default function Admin() {
       setDashboardLoading(true)
       try {
         const token = await getAccessToken()
-        const res = await getAdminDashboard(token)
-        setDashboard(res.data?.data || res.data)
+        const [dashRes, todayRes] = await Promise.all([
+          getAdminDashboard(token),
+          getAdminOrders(token, { from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }),
+        ])
+        setDashboard(dashRes.data?.data || dashRes.data)
+        const todayRaw = todayRes.data?.data || todayRes.data || []
+        const todayList = Array.isArray(todayRaw) ? todayRaw : (todayRaw.items || todayRaw.orders || [])
+        setTodayOrders(todayList.length)
       } catch { /* ignore */ }
       setDashboardLoading(false)
     }
@@ -243,15 +250,24 @@ export default function Admin() {
             dashboardLoading ? <Spinner /> : (
               <div className="space-y-6">
                 {/* Balance Card */}
-                <div className="bg-white rounded-xl border border-[#E5E5E3] p-6">
+                <div className={`rounded-xl border p-6 ${balance <= 100000 ? 'bg-red-50 border-red-200' : 'bg-white border-[#E5E5E3]'}`}>
                   <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">GrowBook 충전금 잔액</p>
-                  <p className="text-3xl font-bold text-primary">{balance.toLocaleString('ko-KR')}원</p>
+                  <p className={`text-3xl font-bold ${balance <= 100000 ? 'text-red-600' : 'text-primary'}`}>{balance.toLocaleString('ko-KR')}원</p>
+                  {balance <= 100000 && (
+                    <p className="text-sm text-red-600 font-medium mt-2">⚠️ 충전금이 부족해요! 충전이 필요합니다</p>
+                  )}
                 </div>
 
-                {/* Total Orders */}
-                <div className="bg-white rounded-xl border border-[#E5E5E3] p-6">
-                  <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">전체 주문 수</p>
-                  <p className="text-3xl font-bold text-[#1A1A1A]">{totalOrders.toLocaleString()}건</p>
+                {/* Order Count Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-xl border border-[#E5E5E3] p-6">
+                    <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">전체 주문 수</p>
+                    <p className="text-3xl font-bold text-[#1A1A1A]">{totalOrders.toLocaleString()}건</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-[#E5E5E3] p-6">
+                    <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">오늘 주문</p>
+                    <p className="text-3xl font-bold text-primary">{todayOrders}건</p>
+                  </div>
                 </div>
 
                 {/* Status Cards */}
@@ -364,18 +380,25 @@ export default function Admin() {
                       <tr className="border-b border-[#E5E5E3] bg-[#F7F7F5]">
                         <th className="text-left px-4 py-3 text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider">이름</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider">이메일</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider">주문 수</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider">가입일</th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.length === 0 ? (
                         <tr>
-                          <td colSpan={3} className="text-center py-12 text-[#ACACAC] text-sm">사용자가 없습니다</td>
+                          <td colSpan={4} className="text-center py-12 text-[#ACACAC] text-sm">사용자가 없습니다</td>
                         </tr>
                       ) : users.map((u) => (
                         <tr key={u.id || u.email} className="border-b border-[#F0F0EE]">
                           <td className="px-4 py-3 text-[#1A1A1A] font-medium">{u.name || u.full_name || '-'}</td>
                           <td className="px-4 py-3 text-[#6B6B6B]">{u.email || '-'}</td>
+                          <td className="px-4 py-3 text-[#1A1A1A] font-semibold">
+                            {u.activeCount ?? u.orderCount ?? u.order_count ?? 0}건
+                            {(u.cancelCount ?? u.cancel_count ?? 0) > 0 && (
+                              <span className="text-xs text-red-500 font-normal ml-1">(취소 {u.cancelCount ?? u.cancel_count}건)</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-[#6B6B6B]">
                             {u.createdAt || u.created_at
                               ? new Date(u.createdAt || u.created_at).toLocaleDateString('ko-KR')

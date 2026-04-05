@@ -16,6 +16,7 @@ import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import AlbumView from './pages/AlbumView'
 import Admin from './pages/Admin'
+import SharedAlbum from './pages/SharedAlbum'
 
 export default function App() {
   const { dispatch } = useApp()
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/share/:shareCode" element={<SharedAlbum />} />
       </Routes>
     </div>
   )

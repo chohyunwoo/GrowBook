@@ -149,16 +149,28 @@ router.get(
 router.get(
   '/users',
   asyncHandler(async (req, res) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, email, name, is_admin, created_at')
-      .order('created_at', { ascending: false })
+    const [usersResult, orderCountsResult] = await Promise.all([
+      supabase.from('profiles').select('id, email, name, is_admin, created_at').order('created_at', { ascending: false }),
+      supabase.from('orders').select('user_id, status'),
+    ])
 
-    if (error) {
+    if (usersResult.error) {
       return res.status(500).json({ success: false, error: 'DB_ERROR', message: '사용자 목록 조회 중 오류가 발생했습니다.' })
     }
 
-    res.json({ success: true, data })
+    const orderData = orderCountsResult.data || []
+    const users = usersResult.data.map((user) => {
+      const userOrders = orderData.filter((o) => o.user_id === user.id)
+      const cancelCount = userOrders.filter((o) => o.status === 80 || o.status === 81).length
+      return {
+        ...user,
+        orderCount: userOrders.length,
+        cancelCount,
+        activeCount: userOrders.length - cancelCount,
+      }
+    })
+
+    res.json({ success: true, data: users })
   })
 )
 

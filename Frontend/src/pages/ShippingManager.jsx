@@ -1,20 +1,34 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm } from '../utils/shipping'
+import { useApp } from '../context/AppContext'
+import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm, migrateShippingAddresses } from '../utils/shipping'
 
-const STORAGE_KEY = 'shipping_addresses'
+function getStorageKey(userId) {
+  return userId ? `shippingAddresses_${userId}` : null
+}
 
-function loadAddresses() {
+function loadAddresses(userId) {
+  const key = getStorageKey(userId)
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
+    if (key) {
+      const data = localStorage.getItem(key)
+      if (data) return JSON.parse(data) || []
+    }
+    for (const oldKey of ['shipping_addresses', 'shippingAddresses']) {
+      const fallback = localStorage.getItem(oldKey)
+      if (fallback) return JSON.parse(fallback) || []
+    }
+    return []
   } catch {
     return []
   }
 }
 
-function saveAddresses(addresses) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(addresses))
+function saveAddresses(userId, addresses) {
+  const key = getStorageKey(userId)
+  if (!key) return
+  localStorage.setItem(key, JSON.stringify(addresses))
 }
 
 const EMPTY_FORM = {
@@ -29,14 +43,21 @@ const EMPTY_FORM = {
 export default function ShippingManager({ embedded = false }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [addresses, setAddresses] = useState(loadAddresses)
+  const { state } = useApp()
+  const userId = state.user?.id
+  const [addresses, setAddresses] = useState(() => loadAddresses(userId))
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [fieldErrors, setFieldErrors] = useState({})
 
   useEffect(() => {
-    saveAddresses(addresses)
-  }, [addresses])
+    migrateShippingAddresses(userId)
+    setAddresses(loadAddresses(userId))
+  }, [userId])
+
+  useEffect(() => {
+    saveAddresses(userId, addresses)
+  }, [addresses, userId])
 
   const handleChange = (field, value) => {
     const newValue = field === 'recipient_phone' ? formatPhone(value) : value
@@ -93,9 +114,9 @@ export default function ShippingManager({ embedded = false }) {
           )}
 
           <div className="space-y-3 mb-6">
-            {addresses.map((addr) => (
+            {addresses.map((addr, index) => (
               <div
-                key={addr.id}
+                key={addr.id || index}
                 className="bg-white rounded-xl border border-[#E5E5E3] p-4"
               >
                 <div className="flex items-start justify-between mb-2">
