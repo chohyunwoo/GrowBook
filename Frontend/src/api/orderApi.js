@@ -18,3 +18,7 @@ export function getOrder(orderUid) {
 export function cancelOrder(orderUid, cancelReason) {
   return client.post(`/api/orders/${orderUid}/cancel`, { cancelReason })
 }
+
+export function updateShipping(orderUid, shipping) {
+  return client.patch(`/api/orders/${orderUid}/shipping`, shipping)
+}

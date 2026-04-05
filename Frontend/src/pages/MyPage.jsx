@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { signOut } from '../lib/supabase'
-import { getOrder, cancelOrder } from '../api/orderApi'
+import { getOrder, cancelOrder, updateShipping } from '../api/orderApi'
+import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm } from '../utils/shipping'
 import ShippingManager from './ShippingManager'
 
 const STORAGE_KEY = 'my_order_uids'
@@ -27,6 +28,18 @@ export default function MyPage() {
   const [cancellingId, setCancellingId] = useState(null)
   const [cancelModal, setCancelModal] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
+  const [shippingModal, setShippingModal] = useState(null)
+  const [shippingForm, setShippingForm] = useState({
+    recipientName: '',
+    recipientPhone: '',
+    postalCode: '',
+    address1: '',
+    address2: '',
+    shippingMemo: '',
+  })
+  const [shippingErrors, setShippingErrors] = useState({})
+  const [shippingSaving, setShippingSaving] = useState(false)
+  const [shippingSuccess, setShippingSuccess] = useState(false)
   const [activeTab, setActiveTab] = useState('orders')
 
   useEffect(() => {
@@ -69,6 +82,53 @@ export default function MyPage() {
       /* ignore */
     }
     setCancellingId(null)
+  }
+
+  const openShippingModal = (orderUid) => {
+    setShippingForm({
+      recipientName: '',
+      recipientPhone: '',
+      postalCode: '',
+      address1: '',
+      address2: '',
+      shippingMemo: '',
+    })
+    setShippingErrors({})
+    setShippingSuccess(false)
+    setShippingModal(orderUid)
+  }
+
+  const handleShippingFormChange = (field, value) => {
+    const newValue = field === 'recipientPhone' ? formatPhone(value) : value
+    setShippingForm((prev) => ({ ...prev, [field]: newValue }))
+    setShippingErrors((prev) => ({ ...prev, [field]: validateShippingField(field, newValue) }))
+  }
+
+  const handleShippingPostcodeSearch = () => {
+    openPostcodeSearch(({ postalCode, address1 }) => {
+      setShippingForm((prev) => ({ ...prev, postalCode, address1 }))
+      setShippingErrors((prev) => ({ ...prev, postalCode: '', address1: '' }))
+    })
+  }
+
+  const handleShippingUpdate = async () => {
+    const fieldMap = { name: 'recipientName', phone: 'recipientPhone', postal: 'postalCode', address: 'address1' }
+    const { errors, isValid } = validateShippingForm(shippingForm, fieldMap)
+    setShippingErrors(errors)
+    if (!isValid) return
+    setShippingSaving(true)
+    try {
+      await updateShipping(shippingModal, shippingForm)
+      setShippingSuccess(true)
+      await fetchOrders()
+      setTimeout(() => {
+        setShippingModal(null)
+        setShippingSuccess(false)
+      }, 1500)
+    } catch {
+      /* ignore */
+    }
+    setShippingSaving(false)
   }
 
   const handleLogout = async () => {
@@ -195,18 +255,28 @@ export default function MyPage() {
                             {new Date(order.createdAt).toLocaleDateString('ko-KR')}
                           </p>
                         )}
-                        {canCancel && (
-                          <button
-                            onClick={() => openCancelModal(order.orderUid)}
-                            disabled={isCancelling}
-                            className={`text-xs font-medium transition-colors duration-200 ${
-                              isCancelling
-                                ? 'text-[#ACACAC] cursor-not-allowed'
-                                : 'text-red-500 hover:text-red-600 cursor-pointer'
-                            }`}
-                          >
-                            {isCancelling ? t('myPage.cancelling') : t('myPage.cancelOrder')}
-                          </button>
+                        {(status === 20 || status === 25 || status === 30) && (
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => openShippingModal(order.orderUid)}
+                              className="text-xs font-medium text-primary hover:text-primary-dark transition-colors duration-200 cursor-pointer"
+                            >
+                              {t('myPage.changeShipping', '배송지 변경')}
+                            </button>
+                            {canCancel && (
+                              <button
+                                onClick={() => openCancelModal(order.orderUid)}
+                                disabled={isCancelling}
+                                className={`text-xs font-medium transition-colors duration-200 ${
+                                  isCancelling
+                                    ? 'text-[#ACACAC] cursor-not-allowed'
+                                    : 'text-red-500 hover:text-red-600 cursor-pointer'
+                                }`}
+                              >
+                                {isCancelling ? t('myPage.cancelling') : t('myPage.cancelOrder')}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     )
@@ -220,6 +290,122 @@ export default function MyPage() {
           {activeTab === 'shipping' && <ShippingManager embedded />}
         </div>
       </main>
+      {/* Shipping Change Modal */}
+      {shippingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-[#1A1A1A] mb-4">{t('myPage.changeShipping', '배송지 변경')}</h3>
+            {shippingSuccess ? (
+              <div className="text-center py-6">
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-[#1A1A1A]">{t('myPage.shippingUpdated', '배송지가 변경되었어요')}</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.recipientName')}</label>
+                    <input
+                      type="text"
+                      value={shippingForm.recipientName}
+                      onChange={(e) => handleShippingFormChange('recipientName', e.target.value)}
+                      maxLength={100}
+                      placeholder={t('shipping.namePlaceholder')}
+                      className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none transition-colors duration-200 ${shippingErrors.recipientName ? 'border-red-400 focus:border-red-400' : 'border-[#E5E5E3] focus:border-primary'}`}
+                    />
+                    {shippingErrors.recipientName && <p className="text-xs text-red-500 mt-1">{shippingErrors.recipientName}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.phone')}</label>
+                    <input
+                      type="tel"
+                      value={shippingForm.recipientPhone}
+                      onChange={(e) => handleShippingFormChange('recipientPhone', e.target.value)}
+                      placeholder="010-0000-0000"
+                      className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none transition-colors duration-200 ${shippingErrors.recipientPhone ? 'border-red-400 focus:border-red-400' : 'border-[#E5E5E3] focus:border-primary'}`}
+                    />
+                    {shippingErrors.recipientPhone && <p className="text-xs text-red-500 mt-1">{shippingErrors.recipientPhone}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.postalCode')}</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={shippingForm.postalCode}
+                        readOnly
+                        placeholder={t('shipping.postalPlaceholder')}
+                        className={`flex-1 px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] bg-[#F7F7F5] focus:outline-none transition-colors duration-200 ${shippingErrors.postalCode ? 'border-red-400' : 'border-[#E5E5E3]'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleShippingPostcodeSearch}
+                        className="px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-medium rounded-lg transition-colors duration-200 cursor-pointer whitespace-nowrap"
+                      >
+                        {t('shipping.searchAddress', '주소 검색')}
+                      </button>
+                    </div>
+                    {shippingErrors.postalCode && <p className="text-xs text-red-500 mt-1">{shippingErrors.postalCode}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.address')}</label>
+                    <input
+                      type="text"
+                      value={shippingForm.address1}
+                      readOnly
+                      maxLength={200}
+                      placeholder={t('shipping.addressPlaceholder')}
+                      className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] bg-[#F7F7F5] focus:outline-none transition-colors duration-200 ${shippingErrors.address1 ? 'border-red-400' : 'border-[#E5E5E3]'}`}
+                    />
+                    {shippingErrors.address1 && <p className="text-xs text-red-500 mt-1">{shippingErrors.address1}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.detailAddress')}</label>
+                    <input
+                      type="text"
+                      value={shippingForm.address2}
+                      onChange={(e) => setShippingForm((prev) => ({ ...prev, address2: e.target.value }))}
+                      placeholder={t('shipping.detailPlaceholder')}
+                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.deliveryMemo')}</label>
+                    <input
+                      type="text"
+                      value={shippingForm.shippingMemo}
+                      onChange={(e) => setShippingForm((prev) => ({ ...prev, shippingMemo: e.target.value }))}
+                      placeholder={t('shipping.memoPlaceholder')}
+                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleShippingUpdate}
+                  disabled={shippingSaving || !shippingForm.recipientName || !shippingForm.recipientPhone || !shippingForm.address1 || Object.values(shippingErrors).some((e) => e)}
+                  className={`w-full text-white text-sm font-medium py-3 rounded-xl transition-colors duration-200 mb-3 ${
+                    shippingSaving || !shippingForm.recipientName || !shippingForm.recipientPhone || !shippingForm.address1 || Object.values(shippingErrors).some((e) => e)
+                      ? 'bg-[#D1D1CF] cursor-not-allowed'
+                      : 'bg-primary hover:bg-primary-dark cursor-pointer'
+                  }`}
+                >
+                  {shippingSaving ? t('order.processing', '처리 중...') : t('buttons.confirm', '확인')}
+                </button>
+                <button
+                  onClick={() => setShippingModal(null)}
+                  className="w-full text-center text-sm text-[#6B6B6B] hover:text-[#1A1A1A] font-medium py-2 cursor-pointer transition-colors duration-200"
+                >
+                  {t('buttons.close')}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Cancel Reason Modal */}
       {cancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm } from '../utils/shipping'
 
 const STORAGE_KEY = 'shipping_addresses'
 
@@ -31,17 +32,29 @@ export default function ShippingManager({ embedded = false }) {
   const [addresses, setAddresses] = useState(loadAddresses)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [fieldErrors, setFieldErrors] = useState({})
 
   useEffect(() => {
     saveAddresses(addresses)
   }, [addresses])
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    const newValue = field === 'recipient_phone' ? formatPhone(value) : value
+    setForm((prev) => ({ ...prev, [field]: newValue }))
+    setFieldErrors((prev) => ({ ...prev, [field]: validateShippingField(field, newValue) }))
+  }
+
+  const handlePostcodeSearch = () => {
+    openPostcodeSearch(({ postalCode, address1 }) => {
+      setForm((prev) => ({ ...prev, postal_code: postalCode, address1 }))
+      setFieldErrors((prev) => ({ ...prev, postal_code: '', address1: '' }))
+    })
   }
 
   const handleSave = () => {
-    if (!form.recipient_name || !form.recipient_phone || !form.address1) return
+    const { errors, isValid } = validateShippingForm(form)
+    setFieldErrors(errors)
+    if (!isValid) return
     const newAddress = {
       ...form,
       id: Date.now(),
@@ -49,6 +62,7 @@ export default function ShippingManager({ embedded = false }) {
     }
     setAddresses((prev) => [...prev, newAddress])
     setForm(EMPTY_FORM)
+    setFieldErrors({})
     setShowForm(false)
   }
 
@@ -131,9 +145,11 @@ export default function ShippingManager({ embedded = false }) {
                     type="text"
                     value={form.recipient_name}
                     onChange={(e) => handleChange('recipient_name', e.target.value)}
+                    maxLength={100}
                     placeholder={t('shipping.namePlaceholder')}
-                    className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none transition-colors duration-200 ${fieldErrors.recipient_name ? 'border-red-400 focus:border-red-400' : 'border-[#E5E5E3] focus:border-primary'}`}
                   />
+                  {fieldErrors.recipient_name && <p className="text-xs text-red-500 mt-1">{fieldErrors.recipient_name}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.phone')}</label>
@@ -142,18 +158,30 @@ export default function ShippingManager({ embedded = false }) {
                     value={form.recipient_phone}
                     onChange={(e) => handleChange('recipient_phone', e.target.value)}
                     placeholder="010-0000-0000"
-                    className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none transition-colors duration-200 ${fieldErrors.recipient_phone ? 'border-red-400 focus:border-red-400' : 'border-[#E5E5E3] focus:border-primary'}`}
                   />
+                  {fieldErrors.recipient_phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.recipient_phone}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.postalCode')}</label>
-                  <input
-                    type="text"
-                    value={form.postal_code}
-                    onChange={(e) => handleChange('postal_code', e.target.value)}
-                    placeholder={t('shipping.postalPlaceholder')}
-                    className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={form.postal_code}
+                      onChange={(e) => handleChange('postal_code', e.target.value)}
+                      placeholder={t('shipping.postalPlaceholder')}
+                      readOnly
+                      className={`flex-1 px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] bg-[#F7F7F5] focus:outline-none transition-colors duration-200 ${fieldErrors.postal_code ? 'border-red-400' : 'border-[#E5E5E3]'}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePostcodeSearch}
+                      className="px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-medium rounded-lg transition-colors duration-200 cursor-pointer whitespace-nowrap"
+                    >
+                      {t('shipping.searchAddress', '주소 검색')}
+                    </button>
+                  </div>
+                  {fieldErrors.postal_code && <p className="text-xs text-red-500 mt-1">{fieldErrors.postal_code}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.address')}</label>
@@ -161,9 +189,12 @@ export default function ShippingManager({ embedded = false }) {
                     type="text"
                     value={form.address1}
                     onChange={(e) => handleChange('address1', e.target.value)}
+                    maxLength={200}
                     placeholder={t('shipping.addressPlaceholder')}
-                    className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                    readOnly
+                    className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] bg-[#F7F7F5] focus:outline-none transition-colors duration-200 ${fieldErrors.address1 ? 'border-red-400' : 'border-[#E5E5E3]'}`}
                   />
+                  {fieldErrors.address1 && <p className="text-xs text-red-500 mt-1">{fieldErrors.address1}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.detailAddress')}</label>
@@ -188,16 +219,16 @@ export default function ShippingManager({ embedded = false }) {
               </div>
               <div className="flex gap-3 mt-5">
                 <button
-                  onClick={() => { setForm(EMPTY_FORM); setShowForm(false) }}
+                  onClick={() => { setForm(EMPTY_FORM); setFieldErrors({}); setShowForm(false) }}
                   className="flex-1 border border-[#E5E5E3] text-[#6B6B6B] text-sm font-medium py-3 rounded-xl hover:bg-[#F7F7F5] transition-colors duration-200 cursor-pointer"
                 >
                   {t('buttons.cancel')}
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={!form.recipient_name || !form.recipient_phone || !form.address1}
+                  disabled={!form.recipient_name || !form.recipient_phone || !form.address1 || Object.values(fieldErrors).some((e) => e)}
                   className={`flex-1 text-white text-sm font-medium py-3 rounded-xl transition-colors duration-200 ${
-                    form.recipient_name && form.recipient_phone && form.address1
+                    form.recipient_name && form.recipient_phone && form.address1 && !Object.values(fieldErrors).some((e) => e)
                       ? 'bg-primary hover:bg-primary-dark cursor-pointer'
                       : 'bg-[#D1D1CF] cursor-not-allowed'
                   }`}

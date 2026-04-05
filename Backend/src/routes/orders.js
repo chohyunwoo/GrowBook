@@ -220,4 +220,72 @@ router.post(
   })
 )
 
+/**
+ * @swagger
+ * /api/orders/{orderUid}/shipping:
+ *   patch:
+ *     summary: 배송지 변경
+ *     tags: [Orders]
+ *     parameters:
+ *       - in: path
+ *         name: orderUid
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [recipientName, recipientPhone, postalCode, address1]
+ *             properties:
+ *               recipientName:
+ *                 type: string
+ *               recipientPhone:
+ *                 type: string
+ *               postalCode:
+ *                 type: string
+ *               address1:
+ *                 type: string
+ *               address2:
+ *                 type: string
+ *               shippingMemo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 배송지 변경 성공
+ *       400:
+ *         description: 필수 항목 누락
+ */
+router.patch(
+  '/:orderUid/shipping',
+  asyncHandler(async (req, res) => {
+    const { orderUid } = req.params
+    const { recipientName, recipientPhone, postalCode, address1, address2, shippingMemo } = req.body
+
+    if (!recipientName || !recipientPhone || !postalCode || !address1) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '배송 필수 항목이 누락되었습니다. (recipientName, recipientPhone, postalCode, address1)' })
+    }
+
+    const client = getSweetbookClient()
+    try {
+      const result = await client.orders.updateShipping(orderUid, {
+        recipientName,
+        recipientPhone,
+        postalCode,
+        address1,
+        address2,
+        memo: shippingMemo,
+      })
+      res.json({ success: true, data: result })
+    } catch (err) {
+      if (err instanceof ServiceError) {
+        return res.status(502).json({ success: false, error: err.code, message: err.message })
+      }
+      return res.status(502).json({ success: false, error: ERROR_CODE.SWEETBOOK_API_ERROR, message: '배송지 변경 중 오류가 발생했습니다.' })
+    }
+  })
+)
+
 module.exports = router

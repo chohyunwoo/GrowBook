@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { estimateOrder, createOrder } from '../api/orderApi'
 import { getCredits } from '../api/creditsApi'
 import { supabase } from '../lib/supabase'
+import { openPostcodeSearch, formatPhone, validateShippingField, validateShippingForm } from '../utils/shipping'
 
 const STORAGE_KEY = 'shipping_addresses'
 
@@ -49,6 +50,7 @@ export default function Order() {
 
   // New address form
   const [form, setForm] = useState(EMPTY_FORM)
+  const [fieldErrors, setFieldErrors] = useState({})
   const [saveNewAddress, setSaveNewAddress] = useState(false)
 
   // Order
@@ -85,7 +87,16 @@ export default function Order() {
   }, [state.bookUid])
 
   const handleFormChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    const newValue = field === 'recipient_phone' ? formatPhone(value) : value
+    setForm((prev) => ({ ...prev, [field]: newValue }))
+    setFieldErrors((prev) => ({ ...prev, [field]: validateShippingField(field, newValue) }))
+  }
+
+  const handlePostcodeSearch = () => {
+    openPostcodeSearch(({ postalCode, address1 }) => {
+      setForm((prev) => ({ ...prev, postal_code: postalCode, address1 }))
+      setFieldErrors((prev) => ({ ...prev, postal_code: '', address1: '' }))
+    })
   }
 
   const getShippingData = () => {
@@ -113,6 +124,11 @@ export default function Order() {
   }
 
   const handleOrder = async () => {
+    if (activeTab === 'new') {
+      const { errors, isValid } = validateShippingForm(form)
+      setFieldErrors(errors)
+      if (!isValid) return
+    }
     const shipping = getShippingData()
     if (!shipping) {
       setError(t('errors.enterShipping'))
@@ -163,7 +179,7 @@ export default function Order() {
   const balance = credits?.balance ?? credits?.amount ?? 0
   const insufficientBalance = balance < paidCreditAmount
 
-  const canOrder = activeTab === 'saved' ? !!selectedAddressId : (form.recipient_name && form.recipient_phone && form.address1)
+  const canOrder = activeTab === 'saved' ? !!selectedAddressId : (form.recipient_name && form.recipient_phone && form.address1 && !Object.values(fieldErrors).some((e) => e))
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -320,9 +336,11 @@ export default function Order() {
                       type="text"
                       value={form.recipient_name}
                       onChange={(e) => handleFormChange('recipient_name', e.target.value)}
+                      maxLength={100}
                       placeholder={t('shipping.namePlaceholder')}
-                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                      className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none transition-colors duration-200 ${fieldErrors.recipient_name ? 'border-red-400 focus:border-red-400' : 'border-[#E5E5E3] focus:border-primary'}`}
                     />
+                    {fieldErrors.recipient_name && <p className="text-xs text-red-500 mt-1">{fieldErrors.recipient_name}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.phone')}</label>
@@ -331,18 +349,30 @@ export default function Order() {
                       value={form.recipient_phone}
                       onChange={(e) => handleFormChange('recipient_phone', e.target.value)}
                       placeholder="010-0000-0000"
-                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                      className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none transition-colors duration-200 ${fieldErrors.recipient_phone ? 'border-red-400 focus:border-red-400' : 'border-[#E5E5E3] focus:border-primary'}`}
                     />
+                    {fieldErrors.recipient_phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.recipient_phone}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.postalCode')}</label>
-                    <input
-                      type="text"
-                      value={form.postal_code}
-                      onChange={(e) => handleFormChange('postal_code', e.target.value)}
-                      placeholder={t('shipping.postalPlaceholder')}
-                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={form.postal_code}
+                        onChange={(e) => handleFormChange('postal_code', e.target.value)}
+                        placeholder={t('shipping.postalPlaceholder')}
+                        readOnly
+                        className={`flex-1 px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] bg-[#F7F7F5] focus:outline-none transition-colors duration-200 ${fieldErrors.postal_code ? 'border-red-400' : 'border-[#E5E5E3]'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={handlePostcodeSearch}
+                        className="px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-medium rounded-lg transition-colors duration-200 cursor-pointer whitespace-nowrap"
+                      >
+                        {t('shipping.searchAddress', '주소 검색')}
+                      </button>
+                    </div>
+                    {fieldErrors.postal_code && <p className="text-xs text-red-500 mt-1">{fieldErrors.postal_code}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.address')}</label>
@@ -350,9 +380,12 @@ export default function Order() {
                       type="text"
                       value={form.address1}
                       onChange={(e) => handleFormChange('address1', e.target.value)}
+                      maxLength={200}
                       placeholder={t('shipping.addressPlaceholder')}
-                      className="w-full px-3 py-2.5 rounded-lg border border-[#E5E5E3] text-sm text-[#1A1A1A] placeholder-[#ACACAC] focus:outline-none focus:border-primary transition-colors duration-200"
+                      readOnly
+                      className={`w-full px-3 py-2.5 rounded-lg border text-sm text-[#1A1A1A] placeholder-[#ACACAC] bg-[#F7F7F5] focus:outline-none transition-colors duration-200 ${fieldErrors.address1 ? 'border-red-400' : 'border-[#E5E5E3]'}`}
                     />
+                    {fieldErrors.address1 && <p className="text-xs text-red-500 mt-1">{fieldErrors.address1}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#6B6B6B] mb-1">{t('shipping.detailAddress')}</label>
