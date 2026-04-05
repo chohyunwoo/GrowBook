@@ -51,6 +51,9 @@ export default function Order() {
   const navigate = useNavigate()
   const { state, dispatch } = useApp()
 
+  // Quantity
+  const [quantity, setQuantity] = useState(1)
+
   // Estimate & credits
   const [estimate, setEstimate] = useState(null)
   const [credits, setCredits] = useState(null)
@@ -88,12 +91,12 @@ export default function Order() {
     else if (savedAddresses.length > 0) setSelectedAddressId(savedAddresses[0].id)
   }, [savedAddresses])
 
-  // Fetch estimate + credits on mount
+  // Fetch estimate + credits on mount and when quantity changes
   useEffect(() => {
     const fetch = async () => {
       try {
         const [estRes, credRes] = await Promise.all([
-          estimateOrder(state.bookUid),
+          estimateOrder(state.bookUid, quantity),
           getCredits(),
         ])
         setEstimate(estRes.data?.data || estRes.data)
@@ -105,7 +108,7 @@ export default function Order() {
       }
     }
     fetch()
-  }, [state.bookUid])
+  }, [state.bookUid, quantity])
 
   const handleFormChange = (field, value) => {
     const newValue = field === 'recipient_phone' ? formatPhone(value) : value
@@ -167,7 +170,7 @@ export default function Order() {
         ? (await supabase.auth.getSession())?.data?.session?.access_token
         : null
       const title = state.generatedStory?.title || state.name || ''
-      const res = await createOrder(state.bookUid, shipping, accessToken, title, state.type)
+      const res = await createOrder(state.bookUid, shipping, accessToken, title, state.type, quantity)
       const orderUid = res.data?.data?.orderUid || res.data?.orderUid || res.data?.uid
       dispatch({ type: 'SET_ORDER_UID', payload: orderUid })
       // Save to localStorage for MyPage order history
@@ -193,10 +196,11 @@ export default function Order() {
     setOrdering(false)
   }
 
-  const productAmount = estimate?.productAmount ?? estimate?.itemPrice ?? estimate?.item ?? 0
+  const unitPrice = estimate?.productAmount ?? estimate?.itemPrice ?? estimate?.item ?? 0
+  const productAmount = unitPrice * quantity
   const shippingFee = estimate?.shippingFee ?? estimate?.shippingPrice ?? estimate?.shipping ?? 0
-  const totalAmount = estimate?.totalAmount ?? estimate?.totalPrice ?? estimate?.total ?? productAmount + shippingFee
-  const paidCreditAmount = estimate?.paidCreditAmount ?? totalAmount
+  const totalAmount = productAmount + shippingFee
+  const paidCreditAmount = totalAmount
   const balance = credits?.balance ?? credits?.amount ?? 0
   const insufficientBalance = balance < paidCreditAmount
 
@@ -233,7 +237,7 @@ export default function Order() {
             ) : (
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between text-[#6B6B6B]">
-                  <span>{t('order.productAmount')}</span>
+                  <span>{t('order.productAmount')} ({t('currency', { amount: unitPrice.toLocaleString() })} × {quantity}권)</span>
                   <span>{t('currency', { amount: productAmount.toLocaleString() })}</span>
                 </div>
                 <div className="flex justify-between text-[#6B6B6B]">
@@ -250,6 +254,36 @@ export default function Order() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Quantity Selector */}
+          <div className="bg-white rounded-xl border border-[#E5E5E3] p-4 mb-4 flex items-center justify-between">
+            <span className="text-sm font-medium text-[#1A1A1A]">수량</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={quantity <= 1}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors duration-200 ${
+                  quantity <= 1
+                    ? 'border-[#E5E5E3] text-[#D1D1CF] cursor-not-allowed'
+                    : 'border-[#E5E5E3] text-[#1A1A1A] hover:bg-[#F7F7F5] cursor-pointer'
+                }`}
+              >
+                -
+              </button>
+              <span className="w-8 text-center text-sm font-semibold text-[#1A1A1A]">{quantity}</span>
+              <button
+                onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+                disabled={quantity >= 10}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors duration-200 ${
+                  quantity >= 10
+                    ? 'border-[#E5E5E3] text-[#D1D1CF] cursor-not-allowed'
+                    : 'border-[#E5E5E3] text-[#1A1A1A] hover:bg-[#F7F7F5] cursor-pointer'
+                }`}
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {/* Credits */}

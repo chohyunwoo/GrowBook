@@ -264,11 +264,11 @@ async function estimateOrder(bookUid) {
  * @param {string} [shipping.memo]
  * @returns {Promise<object>}
  */
-async function createOrder(bookUid, shipping) {
+async function createOrder(bookUid, shipping, quantity = 1) {
   const client = getClient()
 
   try {
-    const result = await client.orders.create({ items: [{ bookUid, quantity: 1 }], shipping })
+    const result = await client.orders.create({ items: [{ bookUid, quantity }], shipping })
     return result
   } catch (err) {
     if (err instanceof SweetbookApiError && err.statusCode === 402) {

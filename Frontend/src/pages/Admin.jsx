@@ -285,6 +285,41 @@ export default function Admin() {
                     ))}
                   </div>
                 </div>
+
+                {/* Status Progress Bars */}
+                {totalOrders > 0 && (() => {
+                  const bars = [
+                    { label: '결제완료', value: (byStatus[20] ?? 0) + (byStatus[25] ?? 0) + (byStatus[30] ?? 0), bg: 'bg-blue-400' },
+                    { label: '제작 중', value: (byStatus[40] ?? 0) + (byStatus[50] ?? 0), bg: 'bg-yellow-400' },
+                    { label: '배송 중', value: byStatus[60] ?? 0, bg: 'bg-purple-400' },
+                    { label: '배송 완료', value: byStatus[70] ?? 0, bg: 'bg-green-400' },
+                    { label: '취소', value: (byStatus[80] ?? 0) + (byStatus[81] ?? 0), bg: 'bg-red-400' },
+                  ]
+                  return (
+                    <div className="bg-white rounded-xl border border-[#E5E5E3] p-6 mt-4">
+                      <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-4">주문 현황 그래프</p>
+                      <div className="space-y-3">
+                        {bars.map((bar) => {
+                          const pct = Math.round((bar.value / totalOrders) * 100)
+                          return (
+                            <div key={bar.label}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-medium text-[#1A1A1A]">{bar.label}</span>
+                                <span className="text-xs text-[#6B6B6B]">{bar.value}건 ({pct}%)</span>
+                              </div>
+                              <div className="w-full h-3 bg-[#F0F0EE] rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${bar.bg}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             )
           )}

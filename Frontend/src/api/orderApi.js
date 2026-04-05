@@ -1,14 +1,14 @@
 import client from './client'
 
-export function estimateOrder(bookUid) {
-  return client.post('/api/orders/estimate', { bookUid })
+export function estimateOrder(bookUid, quantity = 1) {
+  return client.post('/api/orders/estimate', { bookUid, quantity })
 }
 
-export function createOrder(bookUid, shipping, accessToken, title, type) {
+export function createOrder(bookUid, shipping, accessToken, title, type, quantity = 1) {
   const config = accessToken
     ? { headers: { Authorization: `Bearer ${accessToken}` } }
     : {}
-  return client.post('/api/orders', { bookUid, shipping, title, type }, config)
+  return client.post('/api/orders', { bookUid, shipping, title, type, quantity }, config)
 }
 
 export function getOrder(orderUid) {

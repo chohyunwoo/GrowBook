@@ -148,17 +148,21 @@ router.get(
 router.post(
   '/',
   asyncHandler(async (req, res) => {
-    const { bookUid, shipping, title, type } = req.body
+    const { bookUid, shipping, title, type, quantity: rawQuantity } = req.body
+    const quantity = rawQuantity ?? 1
 
     if (!bookUid) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: 'bookUid가 필요합니다.' })
+    }
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
+      return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '수량은 1~10 사이의 정수여야 합니다.' })
     }
     if (!shipping?.recipientName || !shipping?.recipientPhone || !shipping?.postalCode || !shipping?.address1) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '배송 필수 항목이 누락되었습니다. (recipientName, recipientPhone, postalCode, address1)' })
     }
 
     try {
-      const result = await createOrder(bookUid, shipping)
+      const result = await createOrder(bookUid, shipping, quantity)
 
       // Supabase에 주문 정보 저장
       const token = req.headers.authorization?.replace('Bearer ', '')
