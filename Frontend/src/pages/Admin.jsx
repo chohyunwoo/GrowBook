@@ -140,7 +140,9 @@ export default function Admin() {
           getAdminDashboard(token),
           getAdminOrders(token, { from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }),
         ])
-        setDashboard(dashRes.data?.data || dashRes.data)
+        const dashData = dashRes.data?.data || dashRes.data
+        console.log('[Admin] dashboard stats:', dashData?.stats)
+        setDashboard(dashData)
         const todayRaw = todayRes.data?.data || todayRes.data || []
         const todayList = Array.isArray(todayRaw) ? todayRaw : (todayRaw.items || todayRaw.orders || [])
         setTodayOrders(todayList.length)
@@ -284,6 +286,9 @@ export default function Admin() {
   const balance = dashboard?.credits?.balance ?? dashboard?.balance ?? 0
   const totalOrders = dashboard?.stats?.totalCount ?? dashboard?.totalOrders ?? 0
   const byStatus = dashboard?.stats?.byStatus || dashboard?.statusCounts || {}
+  const stats = dashboard?.stats || {}
+  const thisMonthCount = stats.thisMonthCount ?? stats.this_month_count ?? 0
+  const activeCount = stats.activeCount ?? stats.active_count ?? 0
 
   const STAT_CARDS = [
     { label: '결제완료', value: byStatus[20] ?? 0, cls: 'text-blue-500' },
@@ -353,6 +358,17 @@ export default function Admin() {
                   <div className="bg-white rounded-xl border border-[#E5E5E3] p-6">
                     <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">오늘 주문</p>
                     <p className="text-3xl font-bold text-primary">{todayOrders}건</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-[#E5E5E3] p-6">
+                    <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">이번 달 주문</p>
+                    <p className="text-3xl font-bold text-[#1A1A1A]">{thisMonthCount.toLocaleString()}건</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-[#E5E5E3] p-6">
+                    <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">실제 주문 수 (취소 제외)</p>
+                    <p className="text-3xl font-bold text-[#1A1A1A]">{activeCount.toLocaleString()}건</p>
+                    {totalOrders > 0 && (
+                      <p className="text-sm text-[#6B6B6B] mt-1">전체 {totalOrders.toLocaleString()}건 중 취소 제외 {activeCount.toLocaleString()}건</p>
+                    )}
                   </div>
                 </div>
 

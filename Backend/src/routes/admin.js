@@ -252,9 +252,15 @@ router.get(
   asyncHandler(async (req, res) => {
     const client = getSweetbookClient()
 
-    const [creditsResult, ordersResult] = await Promise.all([
+    // 이번 달 범위 계산
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString()
+
+    const [creditsResult, ordersResult, thisMonthResult] = await Promise.all([
       client.credits.getBalance().catch(() => null),
       supabase.from('orders').select('status'),
+      supabase.from('orders').select('id').gte('ordered_at', monthStart).lte('ordered_at', monthEnd),
     ])
 
     if (!creditsResult) {
@@ -271,8 +277,11 @@ router.get(
       byStatus[row.status] = (byStatus[row.status] || 0) + 1
     }
 
+    const thisMonthCount = thisMonthResult.data?.length || 0
+    const activeCount = ordersResult.data.filter((row) => row.status !== 80 && row.status !== 81).length
+
     const credits = { balance: creditsResult.balance }
-    const stats = { totalCount, byStatus }
+    const stats = { totalCount, thisMonthCount, activeCount, byStatus }
 
     res.json({
       success: true,
