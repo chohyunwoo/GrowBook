@@ -11,8 +11,12 @@ export function createOrder(bookUid, shipping, accessToken, title, type, quantit
   return client.post('/api/orders', { bookUid, shipping, title, type, quantity }, config)
 }
 
-export function getOrder(orderUid) {
-  return client.get(`/api/orders/${orderUid}`)
+export function getOrder(orderUid, accessToken) {
+  const headers = {}
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+  return client.get(`/api/orders/${orderUid}`, { headers })
 }
 
 export function getMyOrders(accessToken, params = {}) {

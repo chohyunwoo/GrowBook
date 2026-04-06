@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { createBookWithImages } from '../api/bookApi'
+import { supabase } from '../lib/supabase'
 
 export default function Loading() {
   const { t } = useTranslation()
@@ -67,7 +68,10 @@ export default function Loading() {
 
       const highlightImages = state.highlights.map((h) => h.imageFile || null)
 
-      const bookRes = await createBookWithImages(bookData, highlightImages, state.coverImageFile)
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+
+      const bookRes = await createBookWithImages(bookData, highlightImages, state.coverImageFile, accessToken)
       const bookUid = bookRes.data?.data?.bookUid || bookRes.data?.bookUid || bookRes.data?.uid
       dispatch({ type: 'SET_BOOK_UID', payload: bookUid })
       updateStep(1, 'done')

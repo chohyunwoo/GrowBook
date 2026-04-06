@@ -157,7 +157,13 @@ router.get(
 router.post(
   '/',
   (req, res, next) => {
-    upload.any()(req, res, (err) => {
+    upload.fields([
+        { name: 'image_0', maxCount: 1 },
+        { name: 'image_1', maxCount: 1 },
+        { name: 'image_2', maxCount: 1 },
+        { name: 'image_3', maxCount: 1 },
+        { name: 'image_4', maxCount: 1 },
+      ])(req, res, (err) => {
       if (!err) return next()
       if (err.code === 'FILE_TYPE_NOT_ALLOWED') {
         return res.status(400).json({ success: false, error: ERROR_CODE.FILE_TYPE_NOT_ALLOWED, message: '허용되지 않는 파일 형식입니다. (jpg, png, webp만 허용)' })
@@ -186,7 +192,12 @@ router.post(
       rating = req.body.rating ? Number(req.body.rating) : undefined
       orderUid = req.body.orderUid
     } else if (req.body.data) {
-      const parsed = JSON.parse(req.body.data)
+      let parsed
+      try {
+        parsed = JSON.parse(req.body.data)
+      } catch (e) {
+        return res.status(400).json({ success: false, error: 'INVALID_JSON', message: '잘못된 JSON 형식입니다.' })
+      }
       ;({ title, content, albumType, rating, orderUid } = parsed)
     }
 
@@ -198,7 +209,7 @@ router.post(
     }
 
     // 이미지 업로드 (Supabase Storage)
-    const imageFiles = (req.files || []).filter((f) => f.mimetype.startsWith('image/'))
+    const imageFiles = Object.values(req.files || {}).flat().filter((f) => f.mimetype.startsWith('image/'))
     if (imageFiles.length > 5) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '이미지는 최대 5장까지 첨부할 수 있습니다.' })
     }
@@ -536,7 +547,7 @@ router.get(
 
     const { data: post, error: postError } = await supabase
       .from('community_posts')
-      .select('*')
+      .select('id, title, content, author_name, album_type, rating, likes, image_urls, created_at')
       .eq('id', postId)
       .single()
 

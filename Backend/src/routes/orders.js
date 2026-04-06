@@ -146,6 +146,17 @@ router.get(
 router.post(
   '/',
   asyncHandler(async (req, res) => {
+    // 인증 확인
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
     const { bookUid, shipping, title, type, quantity: rawQuantity } = req.body
     const quantity = rawQuantity ?? 1
 
@@ -163,22 +174,16 @@ router.post(
       const result = await createOrder(bookUid, shipping, quantity)
 
       // Supabase에 주문 정보 저장
-      const token = req.headers.authorization?.replace('Bearer ', '')
-      if (token) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser(token)
-          if (user) {
-            await saveOrder(user.id, {
-              orderUid: result.orderUid,
-              albumTitle: title || '',
-              albumType: type || 'child',
-              status: 20,
-              quantity,
-            })
-          }
-        } catch (saveErr) {
-          console.error('[orders] Supabase 주문 저장 실패:', saveErr.message)
-        }
+      try {
+        await saveOrder(user.id, {
+          orderUid: result.orderUid,
+          albumTitle: title || '',
+          albumType: type || 'child',
+          status: 20,
+          quantity,
+        })
+      } catch (saveErr) {
+        console.error('[orders] Supabase 주문 저장 실패:', saveErr.message)
       }
 
       res.json({ success: true, data: result })
@@ -213,7 +218,31 @@ router.post(
 router.get(
   '/:orderUid',
   asyncHandler(async (req, res) => {
+    // 인증 확인
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
     const { orderUid } = req.params
+
+    // 본인 확인
+    const { data: myOrder } = await supabase
+      .from('orders')
+      .select('order_uid')
+      .eq('order_uid', orderUid)
+      .eq('user_id', user.id)
+      .single()
+
+    if (!myOrder) {
+      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '본인의 주문만 조회할 수 있습니다.' })
+    }
+
     try {
       const result = await getOrder(orderUid)
       res.json({ success: true, data: result })
@@ -345,7 +374,31 @@ router.post(
 router.patch(
   '/:orderUid/shipping',
   asyncHandler(async (req, res) => {
+    // 인증 확인
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
     const { orderUid } = req.params
+
+    // 본인 확인
+    const { data: myOrder } = await supabase
+      .from('orders')
+      .select('order_uid')
+      .eq('order_uid', orderUid)
+      .eq('user_id', user.id)
+      .single()
+
+    if (!myOrder) {
+      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '본인의 주문만 배송지를 변경할 수 있습니다.' })
+    }
+
     const { recipientName, recipientPhone, postalCode, address1, address2, shippingMemo } = req.body
 
     if (!recipientName || !recipientPhone || !postalCode || !address1) {

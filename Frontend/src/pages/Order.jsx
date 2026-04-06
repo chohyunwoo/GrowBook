@@ -98,9 +98,12 @@ export default function Order() {
     if (!isInitial) setEstimateLoading(true)
     const fetch = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const accessToken = session?.access_token
+
         const [estRes, credRes] = await Promise.all([
           estimateOrder(state.bookUid, quantity),
-          getCredits(),
+          getCredits(accessToken),
         ])
         setEstimate(estRes.data?.data || estRes.data)
         setCredits(credRes.data?.data || credRes.data)

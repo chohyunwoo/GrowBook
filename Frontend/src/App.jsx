@@ -17,6 +17,7 @@ import Privacy from './pages/Privacy'
 import AlbumView from './pages/AlbumView'
 import Admin from './pages/Admin'
 import SharedAlbum from './pages/SharedAlbum'
+import ProtectedRoute from './components/ProtectedRoute'
 import Community from './pages/Community'
 import CommunityPost from './pages/CommunityPost'
 import ReviewPost from './pages/ReviewPost'
@@ -48,10 +49,10 @@ export default function App() {
         <Route path="/loading" element={<Loading />} />
         <Route path="/preview" element={<Preview />} />
         <Route path="/album-view" element={<AlbumView />} />
-        <Route path="/order" element={<Order />} />
-        <Route path="/complete" element={<Complete />} />
-        <Route path="/shipping" element={<ShippingManager />} />
-        <Route path="/mypage" element={<MyPage />} />
+        <Route path="/order" element={<ProtectedRoute><Order /></ProtectedRoute>} />
+        <Route path="/complete" element={<ProtectedRoute><Complete /></ProtectedRoute>} />
+        <Route path="/shipping" element={<ProtectedRoute><ShippingManager /></ProtectedRoute>} />
+        <Route path="/mypage" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/admin" element={<Admin />} />

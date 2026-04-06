@@ -30,7 +30,7 @@ const app = express()
 
 app.use(helmet())
 app.use(morgan('dev'))
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN }))
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN || 'http://localhost:5173' }))
 app.use(express.json({ limit: '1mb' }))
 
 const swaggerSpec = swaggerJsdoc({
@@ -65,7 +65,7 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({
     success: false,
     error: err.code || 'INTERNAL_ERROR',
-    message: err.message || '서버 오류가 발생했습니다.',
+    message: process.env.NODE_ENV === 'development' ? err.message : '서버 오류가 발생했습니다.',
   })
 })
 

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { generateStory } from '../api/storyApi'
 import { generateVideo } from '../api/videoApi'
+import { supabase } from '../lib/supabase'
 
 const DEFAULT_COVER_TEMPLATE = '4MY2fokVjkeY'
 const DEFAULT_CONTENT_TEMPLATE = 'vHA59XPPKqak'
@@ -273,6 +274,9 @@ export default function Preview() {
           .filter((h) => h.imageFile)
           .map((h) => h.memo || ''),
       ]
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+
       const res = await generateVideo(imageFiles, {
         title: story.title || '',
         subtitle: story.subtitle || '',
@@ -280,7 +284,7 @@ export default function Preview() {
         memos,
         story: story.story || '',
         bgmFile,
-      })
+      }, accessToken)
       const url = window.URL.createObjectURL(res.data)
       const a = document.createElement('a')
       a.href = url

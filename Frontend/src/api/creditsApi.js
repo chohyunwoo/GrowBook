@@ -1,5 +1,9 @@
 import client from './client'
 
-export function getCredits() {
-  return client.get('/api/credits')
+export function getCredits(accessToken) {
+  const headers = {}
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+  return client.get('/api/credits', { headers })
 }

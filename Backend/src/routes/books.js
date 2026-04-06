@@ -4,6 +4,7 @@ const { SweetbookClient } = require('../sdk/client')
 const asyncHandler = require('../middlewares/asyncHandler')
 const ERROR_CODE = require('../constants/errorCode')
 const { createBook, ServiceError } = require('../services/sweetbookService')
+const { supabase } = require('../services/supabaseService')
 
 const router = express.Router()
 
@@ -83,6 +84,17 @@ router.post(
     })
   },
   asyncHandler(async (req, res) => {
+    // 인증 확인
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
     let bookData
     try {
       bookData = JSON.parse(req.body.data)
@@ -167,6 +179,17 @@ router.post(
     })
   },
   asyncHandler(async (req, res) => {
+    // 인증 확인
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
     const { bookUid } = req.params
     if (!req.file) {
       return res.status(400).json({ success: false, error: ERROR_CODE.INVALID_INPUT, message: '이미지 파일이 필요합니다.' })

@@ -3,6 +3,7 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 const asyncHandler = require('../middlewares/asyncHandler')
+const { supabase } = require('../services/supabaseService')
 const { generateSlideshow, cleanup } = require('../services/videoService')
 
 const router = express.Router()
@@ -82,6 +83,17 @@ router.post(
     })
   },
   asyncHandler(async (req, res) => {
+    // 인증 확인
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
     const imageFiles = req.files?.images
     if (!imageFiles || imageFiles.length === 0) {
       const err = new Error('이미지를 1장 이상 업로드해주세요.')

@@ -1,7 +1,11 @@
 import client from './client'
 
-export function createShareLink(data) {
-  return client.post('/api/share', data)
+export function createShareLink(data, accessToken) {
+  const headers = {}
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+  return client.post('/api/share', data, { headers })
 }
 
 export function getSharedAlbum(shareCode) {

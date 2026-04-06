@@ -37,6 +37,17 @@ const router = express.Router()
 router.post(
   '/',
   asyncHandler(async (req, res) => {
+    // 인증 확인
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '인증 토큰이 필요합니다.' })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED', message: '유효하지 않은 토큰입니다.' })
+    }
+
     const { orderUid, title, subtitle, story, albumType } = req.body
 
     if (!orderUid || !title) {

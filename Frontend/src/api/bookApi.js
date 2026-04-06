@@ -4,7 +4,7 @@ export function createBook(data) {
   return client.post('/api/books/create', data)
 }
 
-export function createBookWithImages(bookData, highlightImages, coverImageFile) {
+export function createBookWithImages(bookData, highlightImages, coverImageFile, accessToken) {
   const formData = new FormData()
   formData.append('data', JSON.stringify(bookData))
   if (coverImageFile) {
@@ -15,9 +15,11 @@ export function createBookWithImages(bookData, highlightImages, coverImageFile) 
       formData.append(`highlight_image_${i}`, file)
     }
   })
-  return client.post('/api/books/create', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const headers = { 'Content-Type': 'multipart/form-data' }
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+  return client.post('/api/books/create', formData, { headers })
 }
 
 export function uploadCoverImage(bookUid, file) {

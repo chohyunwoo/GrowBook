@@ -35,7 +35,10 @@ export default function Complete() {
   const fetchOrder = async () => {
     if (!state.orderUid) return
     try {
-      const res = await getOrder(state.orderUid)
+      const accessToken = supabase
+        ? (await supabase.auth.getSession())?.data?.session?.access_token
+        : null
+      const res = await getOrder(state.orderUid, accessToken)
       setOrder(res.data?.data || res.data)
       setError(null)
     } catch {
@@ -85,6 +88,9 @@ export default function Complete() {
     setSharing(true)
     setCopied(false)
     try {
+      const accessToken = supabase
+        ? (await supabase.auth.getSession())?.data?.session?.access_token
+        : null
       const story = state.generatedStory || {}
       const res = await createShareLink({
         orderUid: state.orderUid,
@@ -92,7 +98,7 @@ export default function Complete() {
         subtitle: story.subtitle,
         story: story.story,
         type: state.type,
-      })
+      }, accessToken)
       const code = res.data?.data?.shareCode || res.data?.shareCode || res.data?.code
       const link = `${window.location.origin}/share/${code}`
       setShareLink(link)
