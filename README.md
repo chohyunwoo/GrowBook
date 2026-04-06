@@ -116,6 +116,7 @@ growbook/
 │   │   ├── components/
 │   │   │   ├── LanguageSwitcher.jsx # 언어 전환 컴포넌트
 │   │   │   └── Footer.jsx
+│   |   |   └── ProtectedRoute.jsx
 │   │   ├── api/
 │   │   │   ├── client.js
 │   │   │   ├── storyApi.js
