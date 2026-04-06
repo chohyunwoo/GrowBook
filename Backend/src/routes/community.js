@@ -224,9 +224,6 @@ router.post(
           .from('community-images')
           .upload(filePath, file.buffer, { contentType: file.mimetype })
 
-        if (uploadError) {
-          console.error('[community POST] Storage 에러:', uploadError)
-        }
         if (!uploadError) {
           const { data: urlData } = supabase.storage
             .from('community-images')
@@ -260,7 +257,6 @@ router.post(
       .single()
 
     if (error) {
-      console.error('[community POST] DB 저장 에러:', error)
       return res.status(500).json({ success: false, error: 'DB_ERROR', message: '게시글 작성 중 오류가 발생했습니다.' })
     }
 

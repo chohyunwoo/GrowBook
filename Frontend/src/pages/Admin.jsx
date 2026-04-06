@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { getAdminStats, getAdminDashboard, getAdminOrders, getAdminOrderDetail, getAdminUsers, getAdminCommunityPosts, deleteAdminPost, getAdminReviews, deleteAdminReview } from '../api/adminApi'
 
@@ -52,9 +51,6 @@ function Spinner() {
 export default function Admin() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { state } = useApp()
-  const user = state.user
-
   const [authorized, setAuthorized] = useState(false)
   const [checking, setChecking] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -140,9 +136,7 @@ export default function Admin() {
           getAdminDashboard(token),
           getAdminOrders(token, { from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }),
         ])
-        const dashData = dashRes.data?.data || dashRes.data
-        console.log('[Admin] dashboard stats:', dashData?.stats)
-        setDashboard(dashData)
+        setDashboard(dashRes.data?.data || dashRes.data)
         const todayRaw = todayRes.data?.data || todayRes.data || []
         const todayList = Array.isArray(todayRaw) ? todayRaw : (todayRaw.items || todayRaw.orders || [])
         setTodayOrders(todayList.length)

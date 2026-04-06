@@ -99,8 +99,7 @@ router.post(
       const data = await generateStory({ type, name, birthYear, albumYear, period, highlights })
       res.json({ success: true, data })
     } catch (err) {
-      const code = err.code === ERROR_CODE.CLAUDE_API_ERROR ? ERROR_CODE.CLAUDE_API_ERROR : ERROR_CODE.CLAUDE_API_ERROR
-      return res.status(502).json({ success: false, error: code, message: err.message })
+      return res.status(502).json({ success: false, error: ERROR_CODE.CLAUDE_API_ERROR, message: err.message })
     }
   })
 )

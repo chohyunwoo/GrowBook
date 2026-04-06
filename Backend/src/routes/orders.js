@@ -318,7 +318,6 @@ router.post(
       // Supabase orders 테이블 status → 80 (CANCELLED)
       try {
         await updateOrderStatus(orderUid, 80)
-        console.log('[orders] Supabase 주문 상태 업데이트 완료:', orderUid, '→ 80')
       } catch (updateErr) {
         console.error('[orders] Supabase 주문 상태 업데이트 실패:', updateErr.message)
       }

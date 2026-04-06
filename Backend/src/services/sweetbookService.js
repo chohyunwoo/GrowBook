@@ -184,60 +184,7 @@ async function createBook({ title, subtitle, story, coverTemplateUid, contentTem
   return { bookUid }
 }
 
-// ── 2. 표지 이미지 업로드 ────────────────────────────────────
-/**
- * @param {string} bookUid
- * @param {Buffer} fileBuffer
- * @param {string} mimeType
- * @returns {Promise<{fileName: string, thumbnailUrl: string}>}
- */
-async function uploadCoverImage(bookUid, fileBuffer, mimeType) {
-  const client = getClient()
-
-  try {
-    const blob = new Blob([fileBuffer], { type: mimeType })
-    const result = await client.photos.upload(bookUid, blob)
-    return { fileName: result.fileName, thumbnailUrl: result.thumbnailUrl }
-  } catch (err) {
-    handleSweetbookError(err)
-  }
-}
-
-// ── 3. 템플릿 목록 조회 ──────────────────────────────────────
-/**
- * SDK에 템플릿 클라이언트가 없어 직접 fetch 사용
- * @param {object} params
- * @param {'cover'|'content'} params.kind
- * @param {string} [params.bookSpecUid='SQUAREBOOK_HC']
- * @param {string} [params.category]
- * @returns {Promise<Array>}
- */
-async function getTemplates({ kind, bookSpecUid = 'SQUAREBOOK_HC', category } = {}) {
-  const baseUrl = process.env.SWEETBOOK_BASE_URL || 'https://api-sandbox.sweetbook.com'
-  const qs = new URLSearchParams({ kind, bookSpecUid })
-  if (category) qs.append('category', category)
-
-  let response
-  try {
-    response = await fetch(`${baseUrl}/v1/templates?${qs.toString()}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.SWEETBOOK_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    })
-  } catch (err) {
-    throw new ServiceError(ERROR_CODE.SWEETBOOK_API_ERROR, '템플릿 조회 중 네트워크 오류가 발생했습니다.')
-  }
-
-  if (!response.ok) {
-    throw new ServiceError(ERROR_CODE.SWEETBOOK_API_ERROR, `템플릿 조회 실패 (HTTP ${response.status})`)
-  }
-
-  const body = await response.json()
-  return body?.data ?? body
-}
-
-// ── 4. 주문 예상 금액 조회 ───────────────────────────────────
+// ── 2. 주문 예상 금액 조회 ───────────────────────────────────
 /**
  * @param {string} bookUid
  * @returns {Promise<object>}
@@ -252,7 +199,7 @@ async function estimateOrder(bookUid) {
   }
 }
 
-// ── 5. 주문 생성 (402 에러 처리 포함) ───────────────────────
+// ── 3. 주문 생성 (402 에러 처리 포함) ───────────────────────
 /**
  * @param {string} bookUid
  * @param {object} shipping
@@ -282,7 +229,7 @@ async function createOrder(bookUid, shipping, quantity = 1) {
   }
 }
 
-// ── 6. 주문 상태 조회 ────────────────────────────────────────
+// ── 4. 주문 상태 조회 ────────────────────────────────────────
 /**
  * @param {string} orderUid
  * @returns {Promise<object>}
@@ -297,7 +244,7 @@ async function getOrder(orderUid) {
   }
 }
 
-// ── 7. 주문 취소 ────────────────────────────────────────────
+// ── 5. 주문 취소 ────────────────────────────────────────────
 /**
  * @param {string} orderUid
  * @returns {Promise<object>}
@@ -312,28 +259,11 @@ async function cancelOrder(orderUid, cancelReason = '고객 요청으로 인한 
   }
 }
 
-// ── 8. 충전금 잔액 조회 ──────────────────────────────────────
-/**
- * @returns {Promise<object>}
- */
-async function getCredits() {
-  const client = getClient()
-
-  try {
-    return await client.credits.getBalance()
-  } catch (err) {
-    handleSweetbookError(err)
-  }
-}
-
 module.exports = {
   ServiceError,
   createBook,
-  uploadCoverImage,
-  getTemplates,
   estimateOrder,
   createOrder,
   getOrder,
   cancelOrder,
-  getCredits,
 }

@@ -151,9 +151,7 @@ router.post(
         .from('review-images')
         .upload(filePath, file.buffer, { contentType: file.mimetype })
 
-      if (uploadError) {
-        console.error('[reviews POST] Storage 에러:', uploadError)
-      } else {
+      if (!uploadError) {
         const { data: urlData } = supabase.storage
           .from('review-images')
           .getPublicUrl(filePath)
