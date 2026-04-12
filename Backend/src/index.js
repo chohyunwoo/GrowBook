@@ -70,7 +70,7 @@ app.use((err, req, res, _next) => {
 })
 
 const PORT = process.env.PORT || 3000
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] http://localhost:${PORT} 에서 실행 중`)
   console.log(`[docs]   http://localhost:${PORT}/api-docs`)
   console.log('[sweetbook] baseUrl:', process.env.SWEETBOOK_BASE_URL)
