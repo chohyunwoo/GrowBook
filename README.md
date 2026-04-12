@@ -27,6 +27,18 @@
 - 👤 구글 로그인 및 주문 내역 조회
 - 📮 카카오 주소 검색 연동 배송지 관리 및 변경
 - 🔐 관리자 페이지 (충전금 잔액, 전체 주문 현황, 상태별 통계 그래프, 커뮤니티/리뷰 관리)
+- 🔒 API 인증 보안 강화 (Bearer Token 인증, ProtectedRoute 적용)
+---
+
+---
+
+## 배포
+
+| 구분 | 서비스 | URL |
+|------|--------|-----|
+| 프론트엔드 | Cloudflare Pages | https://growbook-eh7.pages.dev |
+| 백엔드 | Railway | https://growbook-production.up.railway.app |
+| DB/인증/스토리지 | Supabase | - |
 
 ---
 
@@ -504,7 +516,7 @@ where email = 'your_admin_email@gmail.com';
 
 ## 개발 환경
 
-- Node.js 18+
+- Node.js 20+
 - npm 9+
 - 포트: 백엔드 3001 / 프론트엔드 5173
 
