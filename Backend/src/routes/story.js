@@ -8,8 +8,8 @@ const router = express.Router()
 
 const storyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 150,
-  message: { success: false, error: ERROR_CODE.INVALID_INPUT, message: '요청 한도를 초과했습니다. 15분 후 다시 시도해주세요.' },
+  max: 20,
+  message: { success: false, error: ERROR_CODE.INVALID_INPUT, message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
 })
 
 /**
